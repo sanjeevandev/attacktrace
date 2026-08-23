@@ -1,0 +1,13 @@
+[flake8]
+max-line-length = 160
+exclude = 
+    .git,
+    __pycache__,
+    .venv,
+    venv,
+    env,
+    build,
+    dist,
+    .pytest_cache
+max-complexity = 25
+ignore = E203, W503, E501, F401, W291, W293, F841, C901, E303, W504, F541, W391

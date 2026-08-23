@@ -1,0 +1,12 @@
+__pycache__/
+*.pyc
+.pytest_cache/
+.git/
+.github/
+.venv/
+env/
+reports/
+*.egg-info
+mitigate.sh
+INCIDENT_REPORT.md
+report.html

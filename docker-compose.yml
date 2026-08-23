@@ -1,0 +1,38 @@
+version: '3.8'
+
+services:
+  attacktrace-engine:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attacktrace-engine
+    ports:
+      - "8000:8000"
+    environment:
+      - PYTHONUNBUFFERED=1
+      - ENVIRONMENT=production
+    volumes:
+      - ./data:/app/data
+      - ./reports:/app/reports
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/api/v1/stats"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 5s
+    restart: unless-stopped
+
+  attacktrace-simulator:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: attacktrace-simulator
+    command: python scripts/simulate_stream.py
+    depends_on:
+      attacktrace-engine:
+        condition: service_healthy
+    volumes:
+      - ./data:/app/data
+    environment:
+      - PYTHONUNBUFFERED=1
+    restart: unless-stopped

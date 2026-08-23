@@ -1,0 +1,23 @@
+{
+  "185.220.101.5": {
+    "ip": "185.220.101.5",
+    "reputation_score": 95,
+    "threat_actor_category": "Tor Exit Node",
+    "country": "Germany",
+    "is_tor_exit_node": true
+  },
+  "185.220.101.99": {
+    "ip": "185.220.101.99",
+    "reputation_score": 88,
+    "threat_actor_category": "Scanner",
+    "country": "Netherlands",
+    "is_tor_exit_node": true
+  },
+  "198.51.100.44": {
+    "ip": "198.51.100.44",
+    "reputation_score": 100,
+    "threat_actor_category": "Known APT",
+    "country": "Russia",
+    "is_tor_exit_node": false
+  }
+}

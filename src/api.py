@@ -1,0 +1,291 @@
+import os
+from contextlib import asynccontextmanager
+from typing import List, Dict, Any
+from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
+from fastapi.responses import HTMLResponse, PlainTextResponse
+from pydantic import BaseModel
+
+from src.pipeline import AttackTracePipeline
+from src.visualizer import GraphVisualizer
+from src.websocket_manager import ConnectionManager
+from src.models import UnifiedEvent
+from src.threat_intel import ThreatIntelEngine
+from src.playbooks import PlaybookEngine
+from src.reporter import IncidentReporter
+
+# In-memory pipeline and Layer 5 engine instances
+pipeline = AttackTracePipeline()
+visualizer = GraphVisualizer()
+ws_manager = ConnectionManager()
+ti_engine = ThreatIntelEngine()
+playbook_engine = PlaybookEngine()
+reporter = IncidentReporter()
+
+DEFAULT_SCENARIO_PATH = "/home/sanjeeva/attacktrace/data/attack_scenario.json"
+
+
+def enrich_all_incidents():
+    for inc in pipeline.incidents:
+        ti_engine.enrich_incident(inc)
+
+
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    """
+    On startup, load the default attack scenario JSON into memory and enrich it.
+    """
+    if os.path.exists(DEFAULT_SCENARIO_PATH):
+        try:
+            pipeline.run_pipeline(DEFAULT_SCENARIO_PATH)
+            enrich_all_incidents()
+        except Exception as e:
+            print(f"Failed to ingest default scenario: {e}")
+    yield
+
+
+app = FastAPI(
+    title="ATTACKTRACE Threat Intelligence API",
+    description="REST backend for threat ingestion, mitigation mapping, and attack graph correlation.",
+    version="1.0.0",
+    lifespan=lifespan
+)
+
+
+class RawLogIngestPayload(BaseModel):
+    logs: List[Dict[str, Any]]
+
+
+@app.post("/api/v1/ingest")
+def ingest_logs(payload: List[Dict[str, Any]]):
+    """
+    Ingests a batch of raw logs, enriches them with MITRE signatures, 
+    correlates incidents, caches state, and returns detected campaigns.
+    """
+    if not payload:
+        raise HTTPException(status_code=400, detail="Empty log list payload")
+    
+    try:
+        incidents = pipeline.run_pipeline_list(payload)
+        for inc in incidents:
+            ti_engine.enrich_incident(inc)
+        return [inc.to_dict() for inc in incidents]
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Log ingestion pipeline failed: {str(e)}")
+
+
+@app.get("/api/v1/incidents")
+def get_incidents():
+    """
+    Returns all currently correlated incidents.
+    """
+    return [inc.to_dict() for inc in pipeline.incidents]
+
+
+@app.get("/api/v1/incidents/{incident_id}")
+def get_incident_details(incident_id: str):
+    """
+    Returns detailed steps and info for a specific incident.
+    """
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            return inc.to_dict()
+    raise HTTPException(status_code=404, detail="Incident not found")
+
+
+@app.get("/api/v1/incidents/{incident_id}/graph")
+def get_incident_graph(incident_id: str):
+    """
+    Returns the nodes and edges graph topology for the incident.
+    """
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            return visualizer.export_graph_json(inc)
+    raise HTTPException(status_code=404, detail="Incident not found")
+
+
+@app.get("/api/v1/stats")
+def get_stats():
+    """
+    Returns aggregated security pipeline metrics.
+    """
+    valid_events = pipeline.collector.valid_events
+    dropped_events = pipeline.collector.dropped_events
+    enriched_events = pipeline.enriched_events
+    incidents = pipeline.incidents
+
+    max_risk = 0
+    severity_dist = {
+        "INFO": 0,
+        "LOW": 0,
+        "MEDIUM": 0,
+        "HIGH": 0,
+        "CRITICAL": 0
+    }
+    mitre_tech_counts = {}
+
+    for event in enriched_events:
+        max_risk = max(max_risk, event.risk_score)
+        severity_dist[event.severity.name] = severity_dist.get(event.severity.name, 0) + 1
+
+        for tech in event.mitre_techniques:
+            tech_label = f"{tech['id']} - {tech['name']}"
+            mitre_tech_counts[tech_label] = mitre_tech_counts.get(tech_label, 0) + 1
+
+    return {
+        "total_ingested": len(valid_events),
+        "total_dropped": len(dropped_events),
+        "total_incidents": len(incidents),
+        "max_risk": max_risk,
+        "mitre_techniques": mitre_tech_counts,
+        "severity_distribution": severity_dist
+    }
+
+
+@app.get("/dashboard", response_class=HTMLResponse)
+def get_dashboard():
+    """
+    Serves the interactive SOC console.
+    """
+    template_path = "/home/sanjeeva/attacktrace/templates/dashboard.html"
+    if not os.path.exists(template_path):
+        raise HTTPException(status_code=404, detail="Dashboard template file not found")
+
+    with open(template_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+
+    return HTMLResponse(content=html_content)
+
+
+@app.websocket("/ws/alerts")
+async def websocket_alerts(websocket: WebSocket):
+    """
+    Handles live WebSocket client registration and connection cycles.
+    """
+    await ws_manager.connect(websocket)
+    try:
+        while True:
+            # Keep client socket connection alive
+            await websocket.receive_text()
+    except WebSocketDisconnect:
+        ws_manager.disconnect(websocket)
+    except Exception:
+        ws_manager.disconnect(websocket)
+
+
+@app.post("/api/v1/stream/trigger")
+async def trigger_stream_ingest(payload: List[Dict[str, Any]]):
+    """
+    Simulates real-time log ingestion stream, running Layer 1, 2, and 3 engines
+    per record and broadcasting updates over WebSockets immediately.
+    """
+    if not payload:
+        raise HTTPException(status_code=400, detail="Empty log list payload")
+
+    new_events_count = 0
+    for record in payload:
+        try:
+            # 1. Layer 1 Ingestion
+            if not isinstance(record, dict):
+                raise ValueError("Log record must be a dictionary")
+            event = UnifiedEvent.from_dict(record)
+            pipeline.collector.valid_events.append(event)
+
+            # 2. Layer 2 Enrichment
+            enriched = pipeline.parser.parse(event)
+            pipeline.enriched_events.append(enriched)
+            new_events_count += 1
+
+            # Broadcast NEW_EVENT
+            await ws_manager.broadcast_json({
+                "type": "NEW_EVENT",
+                "payload": enriched.to_dict()
+            })
+
+            # 3. Layer 3 Correlation
+            pipeline.incidents = pipeline.correlator.correlate(
+                pipeline.enriched_events,
+                time_window_minutes=60
+            )
+            enrich_all_incidents()
+
+            # Broadcast updated/new incidents
+            for inc in pipeline.incidents:
+                await ws_manager.broadcast_json({
+                    "type": "NEW_INCIDENT",
+                    "payload": inc.to_dict()
+                })
+
+            # 4. Broadcast METRIC_UPDATE
+            stats = get_stats()
+            await ws_manager.broadcast_json({
+                "type": "METRIC_UPDATE",
+                "payload": stats
+            })
+
+        except Exception as e:
+            pipeline.collector.dropped_events.append({
+                "record": record,
+                "error": str(e)
+            })
+            # Broadcast METRIC_UPDATE to update dropped counter
+            stats = get_stats()
+            await ws_manager.broadcast_json({
+                "type": "METRIC_UPDATE",
+                "payload": stats
+            })
+
+    return {
+        "status": "success",
+        "processed_events": new_events_count,
+        "current_incidents": len(pipeline.incidents)
+    }
+
+
+@app.post("/api/v1/incidents/{incident_id}/mitigate")
+def mitigate_incident(incident_id: str):
+    """
+    Generates remediation actions for the specified incident, 
+    writes mitigate.sh, and returns the actions.
+    """
+    target_incident = None
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            target_incident = inc
+            break
+            
+    if not target_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+        
+    actions = playbook_engine.generate_mitigations(target_incident)
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_script = os.path.join(project_dir, "mitigate.sh")
+    playbook_engine.export_mitigation_script(actions, output_script)
+    
+    return [act.to_dict() for act in actions]
+
+
+@app.get("/api/v1/incidents/{incident_id}/report", response_class=PlainTextResponse)
+def get_incident_report(incident_id: str):
+    """
+    Generates and returns the markdown forensic report as plain text.
+    """
+    target_incident = None
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            target_incident = inc
+            break
+            
+    if not target_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+        
+    threat_data = ti_engine.lookup_ip(target_incident.primary_actor_ip)
+    actions = playbook_engine.generate_mitigations(target_incident)
+    
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_report = os.path.join(project_dir, "INCIDENT_REPORT.md")
+    
+    report_content = reporter.generate_markdown_report(
+        target_incident, threat_data, actions, output_report
+    )
+    
+    return PlainTextResponse(content=report_content, media_type="text/markdown")

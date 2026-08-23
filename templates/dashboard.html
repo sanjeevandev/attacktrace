@@ -1,0 +1,1448 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATTACKTRACE - Cyber Incident & Kill-Chain Console</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=Outfit:wght@400;600;700&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-dark: #070a13;
+            --bg-card: #0f1422;
+            --bg-card-hover: #161e33;
+            --border-color: #1e2842;
+            --text-primary: #f1f5f9;
+            --text-secondary: #94a3b8;
+            --color-primary: #00d2ff;
+            --color-primary-rgb: 0, 210, 255;
+            
+            --critical: #f43f5e;
+            --high: #f97316;
+            --medium: #eab308;
+            --low: #22c55e;
+            --info: #3b82f6;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-dark);
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        header {
+            background: linear-gradient(90deg, #0e1324 0%, #151b30 100%);
+            border-bottom: 1px solid var(--border-color);
+            padding: 1rem 2rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            height: 70px;
+        }
+
+        .header-logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.5rem;
+            font-weight: 700;
+            letter-spacing: 2px;
+            background: linear-gradient(135deg, #00d2ff 0%, #d500f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        .header-logo::before {
+            content: '▲';
+            font-size: 1.2rem;
+            background: linear-gradient(135deg, #00d2ff 0%, #d500f9 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .header-status {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background-color: rgba(30, 40, 66, 0.5);
+            padding: 0.4rem 1rem;
+            border-radius: 99px;
+            border: 1px solid var(--border-color);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            background-color: var(--text-secondary);
+            border-radius: 50%;
+            transition: all 0.3s;
+        }
+
+        @keyframes pulse {
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+        }
+
+        .status-dot.pulsing {
+            animation: pulse 2s infinite;
+        }
+
+        .main-container {
+            flex: 1;
+            display: flex;
+            overflow: hidden;
+        }
+
+        /* Sidebar: Incidents List */
+        .sidebar {
+            width: 320px;
+            background-color: #0b0f1a;
+            border-right: 1px solid var(--border-color);
+            display: flex;
+            flex-direction: column;
+            overflow-y: auto;
+        }
+
+        .sidebar-header {
+            padding: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.1rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .incident-card {
+            padding: 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            cursor: pointer;
+            transition: all 0.2s ease;
+            position: relative;
+        }
+
+        .incident-card:hover {
+            background-color: var(--bg-card-hover);
+        }
+
+        .incident-card.active {
+            background-color: rgba(0, 210, 255, 0.08);
+            border-left: 4px solid var(--color-primary);
+        }
+
+        .incident-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.6rem;
+        }
+
+        .severity-badge {
+            font-size: 0.7rem;
+            font-weight: 700;
+            padding: 0.25rem 0.6rem;
+            border-radius: 4px;
+            text-transform: uppercase;
+        }
+
+        .badge-critical { background-color: rgba(244, 63, 94, 0.15); color: var(--critical); border: 1px solid rgba(244, 63, 94, 0.3); }
+        .badge-high { background-color: rgba(249, 115, 22, 0.15); color: var(--high); border: 1px solid rgba(249, 115, 22, 0.3); }
+        .badge-medium { background-color: rgba(230, 180, 8, 0.15); color: var(--medium); border: 1px solid rgba(230, 180, 8, 0.3); }
+        .badge-low { background-color: rgba(34, 197, 94, 0.15); color: var(--low); border: 1px solid rgba(34, 197, 94, 0.3); }
+        .badge-info { background-color: rgba(59, 130, 246, 0.15); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.3); }
+
+        .confidence-indicator {
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+        }
+
+        .incident-ip {
+            font-weight: 600;
+            font-size: 0.95rem;
+            color: var(--text-primary);
+            margin-bottom: 0.4rem;
+        }
+
+        .incident-meta {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Content Area */
+        .content {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+            background-color: var(--bg-dark);
+        }
+
+        /* Stats Bar */
+        .stats-bar {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 1.2rem;
+            padding: 1.5rem;
+            background-color: #0b0f1a;
+            border-bottom: 1px solid var(--border-color);
+        }
+
+        .stat-card {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.2rem;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            transition: transform 0.2s;
+        }
+
+        .stat-card:hover {
+            transform: translateY(-2px);
+        }
+
+        .stat-details h4 {
+            font-size: 0.75rem;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            margin-bottom: 0.3rem;
+        }
+
+        .stat-details p {
+            font-size: 1.8rem;
+            font-weight: 700;
+            font-family: 'Outfit', sans-serif;
+            color: var(--text-primary);
+        }
+
+        .stat-icon {
+            font-size: 2.2rem;
+            color: rgba(0, 210, 255, 0.3);
+        }
+
+        /* Tab Controls */
+        .tab-controls {
+            display: flex;
+            background-color: #0c111e;
+            border-bottom: 1px solid var(--border-color);
+            padding: 0 1.5rem;
+        }
+
+        .tab-btn {
+            background: none;
+            border: none;
+            color: var(--text-secondary);
+            padding: 1rem 1.5rem;
+            font-size: 0.9rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s;
+            border-bottom: 2px solid transparent;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+        }
+
+        .tab-btn.active {
+            color: var(--color-primary);
+            border-bottom: 2px solid var(--color-primary);
+        }
+
+        /* Tab Content Panel */
+        .tab-content {
+            flex: 1;
+            padding: 1.5rem;
+            overflow-y: auto;
+            position: relative;
+        }
+
+        .tab-panel {
+            display: none;
+            height: 100%;
+        }
+
+        .tab-panel.active {
+            display: flex;
+            flex-direction: column;
+        }
+
+        /* Timeline / Narrative Styles */
+        .story-section {
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.5rem;
+            margin-bottom: 1.5rem;
+        }
+
+        .story-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.2rem;
+            font-weight: 600;
+            color: var(--color-primary);
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .story-text {
+            font-size: 0.95rem;
+            line-height: 1.6;
+            color: var(--text-primary);
+            white-space: pre-line;
+        }
+
+        .timeline-container {
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            position: relative;
+            padding-left: 20px;
+        }
+
+        .timeline-container::before {
+            content: '';
+            position: absolute;
+            left: 5px;
+            top: 10px;
+            bottom: 10px;
+            width: 2px;
+            background-color: var(--border-color);
+        }
+
+        .timeline-node {
+            position: relative;
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem 1.2rem;
+            margin-bottom: 0.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+            transition: border-color 0.2s;
+        }
+
+        .timeline-node:hover {
+            border-color: var(--color-primary);
+        }
+
+        .timeline-node::before {
+            content: '';
+            position: absolute;
+            left: -20px;
+            top: 20px;
+            width: 12px;
+            height: 12px;
+            background-color: var(--bg-dark);
+            border: 3px solid var(--color-primary);
+            border-radius: 50%;
+            transform: translateX(-50%);
+        }
+
+        .node-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .node-stage {
+            font-size: 0.8rem;
+            font-weight: 700;
+            text-transform: uppercase;
+            color: var(--color-primary);
+        }
+
+        .node-time {
+            font-size: 0.8rem;
+            color: var(--text-secondary);
+        }
+
+        .node-tech {
+            font-size: 0.95rem;
+            font-weight: 600;
+            color: var(--text-primary);
+        }
+
+        .node-desc {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            background-color: rgba(0, 0, 0, 0.2);
+            padding: 0.6rem;
+            border-radius: 4px;
+            font-family: monospace;
+        }
+
+        .node-meta {
+            display: flex;
+            justify-content: space-between;
+            font-size: 0.8rem;
+        }
+
+        .node-risk {
+            font-weight: 600;
+        }
+
+        /* Visual Graph Canvas Panel */
+        .graph-panel {
+            background-color: #0b0f1a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            height: 100%;
+            position: relative;
+            overflow: hidden;
+            display: flex;
+            flex-direction: column;
+        }
+
+        .graph-header {
+            padding: 0.8rem 1.2rem;
+            border-bottom: 1px solid var(--border-color);
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .legend {
+            display: flex;
+            gap: 1rem;
+        }
+
+        .legend-item {
+            display: flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .legend-dot {
+            width: 10px;
+            height: 10px;
+            border-radius: 50%;
+        }
+
+        .legend-attacker { background-color: var(--critical); }
+        .legend-user { background-color: var(--high); }
+        .legend-resource { background-color: var(--info); }
+        .legend-technique { background-color: var(--medium); }
+
+        .svg-container {
+            flex: 1;
+            position: relative;
+            background-color: #090c15;
+        }
+
+        svg {
+            width: 100%;
+            height: 100%;
+        }
+
+        /* SVG Node/Edge Styling */
+        .edge-line {
+            fill: none;
+            stroke-width: 1.5;
+            transition: all 0.3s;
+        }
+
+        .edge-label {
+            font-size: 8px;
+            fill: var(--text-secondary);
+            pointer-events: none;
+        }
+
+        .node-circle {
+            stroke-width: 2;
+            cursor: pointer;
+            transition: transform 0.2s, stroke-width 0.2s;
+        }
+
+        .node-circle:hover {
+            transform: scale(1.15);
+            stroke-width: 3;
+        }
+
+        .node-text {
+            font-size: 10px;
+            font-weight: 500;
+            fill: var(--text-primary);
+            pointer-events: none;
+            text-anchor: middle;
+        }
+
+        .node-title-text {
+            font-size: 11px;
+            font-weight: 600;
+            fill: var(--text-primary);
+            pointer-events: none;
+            text-anchor: middle;
+        }
+        
+        .no-data-msg {
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            height: 100%;
+            color: var(--text-secondary);
+            font-size: 1.1rem;
+        }
+
+        /* Live Alert Stream CSS */
+        @keyframes slideDown {
+            from { opacity: 0; transform: translateY(-20px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .live-alert-item {
+            animation: slideDown 0.35s cubic-bezier(0.16, 1, 0.3, 1);
+            background-color: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 6px;
+            padding: 1rem 1.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            transition: border-color 0.2s, transform 0.2s;
+        }
+
+        .live-alert-item:hover {
+            border-color: var(--color-primary);
+            transform: translateX(4px);
+        }
+
+        .live-stream-panel {
+            background-color: #0b0f1a;
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1.2rem;
+            display: flex;
+            flex-direction: column;
+            gap: 1rem;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        .live-stream-scroll {
+            flex: 1;
+            overflow-y: auto;
+            display: flex;
+            flex-direction: column;
+            gap: 0.8rem;
+            padding-right: 6px;
+        }
+    </style>
+</head>
+<body>
+
+    <header>
+        <div class="header-logo">ATTACKTRACE</div>
+        <div class="header-status" id="ws-status-badge">
+            <span class="status-dot" id="status-dot"></span>
+            <span id="status-text">Security Engine Offline</span>
+        </div>
+    </header>
+
+    <div class="main-container">
+        <!-- Sidebar -->
+        <div class="sidebar">
+            <div class="sidebar-header">Correlated Campaigns</div>
+            <div id="incidents-list">
+                <!-- Dynamically populated -->
+            </div>
+        </div>
+
+        <!-- Content Area -->
+        <div class="content">
+            <!-- Stats -->
+            <div class="stats-bar">
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h4>Total Ingested</h4>
+                        <p id="stat-ingested">0</p>
+                    </div>
+                    <div class="stat-icon">📥</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h4>Dropped Logs</h4>
+                        <p id="stat-dropped" style="color: var(--text-secondary);">0</p>
+                    </div>
+                    <div class="stat-icon">⚠️</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h4>Correlated Incidents</h4>
+                        <p id="stat-incidents" style="color: var(--critical);">0</p>
+                    </div>
+                    <div class="stat-icon">🔥</div>
+                </div>
+                <div class="stat-card">
+                    <div class="stat-details">
+                        <h4>Max Severity Risk</h4>
+                        <p id="stat-risk">0</p>
+                    </div>
+                    <div class="stat-icon">🎯</div>
+                </div>
+            </div>
+
+            <!-- Tabs -->
+            <div class="tab-controls">
+                <button class="tab-btn active" onclick="switchTab('timeline-tab')">Incident Story & Timeline</button>
+                <button class="tab-btn" onclick="switchTab('graph-tab')">Attack Graph Topology</button>
+                <button class="tab-btn" onclick="switchTab('live-stream-tab')">Live Alert Feed</button>
+            </div>
+
+            <!-- Tab Panels -->
+            <div class="tab-content">
+                <!-- Timeline Panel -->
+                <div id="timeline-tab" class="tab-panel active">
+                    <div id="incident-story-container" class="story-section">
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 10px;">
+                            <div class="story-title" style="margin-bottom: 0;">📖 Incident Story Narrative</div>
+                            <div id="soar-buttons-container" style="display: flex; gap: 10px;">
+                                <button onclick="runSOARPlaybook()" style="background: linear-gradient(135deg, #00d2ff 0%, #00e676 100%); color: #070a13; border: none; font-weight: 700; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+                                    ⚡ Run SOAR Playbook
+                                </button>
+                                <button onclick="downloadForensicReport()" style="background-color: transparent; border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 600; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                                    📄 Forensic Report
+                                </button>
+                            </div>
+                        </div>
+                        <div id="story-narrative" class="story-text">Select an incident from the sidebar to view analysis details.</div>
+                    </div>
+                    
+                    <div class="story-title" style="margin-bottom: 0.8rem;">⚡ Chronological Kill Chain Steps</div>
+                    <div id="steps-timeline" class="timeline-container">
+                        <!-- Dynamically populated -->
+                    </div>
+                </div>
+
+                <!-- Graph Panel -->
+                <div id="graph-tab" class="tab-panel">
+                    <div class="graph-panel">
+                        <div class="graph-header">
+                            <div>Topology Visualizer (Layered Flow)</div>
+                            <div class="legend">
+                                <div class="legend-item"><span class="legend-dot legend-attacker"></span>Attacker</div>
+                                <div class="legend-item"><span class="legend-dot legend-user"></span>User</div>
+                                <div class="legend-item"><span class="legend-dot legend-resource"></span>Resource</div>
+                                <div class="legend-item"><span class="legend-dot legend-technique"></span>Technique</div>
+                            </div>
+                        </div>
+                        <div class="svg-container" id="svg-host">
+                            <svg id="graph-svg">
+                                <defs>
+                                    <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
+                                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+                                    </marker>
+                                </defs>
+                                <g id="edges-group"></g>
+                                <g id="nodes-group"></g>
+                            </svg>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Live Stream Panel -->
+                <div id="live-stream-tab" class="tab-panel">
+                    <div class="live-stream-panel">
+                        <div class="story-title">📡 Real-Time Raw Log Stream</div>
+                        <div class="live-stream-scroll" id="live-alerts-list">
+                            <div class="no-data-msg">Waiting for live ingestion stream events...</div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for SOAR Playbook Execution -->
+    <div id="playbook-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 650px; max-width: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5);">
+            <div style="padding: 1.2rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: #0b0f1a;">
+                <h3 style="font-family: 'Outfit', sans-serif; color: var(--color-primary); font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    ⚡ SOAR Mitigation Playbook Executed
+                </h3>
+                <span onclick="closePlaybookModal()" style="color: var(--text-secondary); cursor: pointer; font-size: 1.5rem; line-height: 1;">&times;</span>
+            </div>
+            <div style="padding: 1.5rem; overflow-y: auto; max-height: 400px; display: flex; flex-direction: column; gap: 1.2rem;">
+                <div>
+                    <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.5px;">Applied Mitigations (Simulated)</h4>
+                    <div id="modal-mitigations-list" style="display: flex; flex-direction: column; gap: 0.6rem;">
+                        <!-- Mitigation cards go here -->
+                    </div>
+                </div>
+                <div>
+                    <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.5px;">Generated Bash Script (mitigate.sh)</h4>
+                    <pre id="modal-bash-script" style="background-color: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; color: #a6e22e; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;"></pre>
+                </div>
+            </div>
+            <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: flex-end; background-color: #0b0f1a;">
+                <button onclick="closePlaybookModal()" style="background-color: var(--border-color); border: none; color: var(--text-primary); font-weight: 600; padding: 0.5rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <!-- Modal for Forensic Report View -->
+    <div id="report-modal" style="display: none; position: fixed; z-index: 1000; left: 0; top: 0; width: 100%; height: 100%; overflow: auto; background-color: rgba(0, 0, 0, 0.8); backdrop-filter: blur(4px); align-items: center; justify-content: center;">
+        <div style="background-color: var(--bg-card); border: 1px solid var(--border-color); border-radius: 8px; width: 800px; max-width: 90%; display: flex; flex-direction: column; overflow: hidden; box-shadow: 0 10px 25px rgba(0,0,0,0.5); height: 80vh;">
+            <div style="padding: 1.2rem; border-bottom: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: #0b0f1a;">
+                <h3 style="font-family: 'Outfit', sans-serif; color: var(--color-primary); font-size: 1.1rem; font-weight: 700; display: flex; align-items: center; gap: 8px;">
+                    📄 Forensic Markdown Report
+                </h3>
+                <span onclick="closeReportModal()" style="color: var(--text-secondary); cursor: pointer; font-size: 1.5rem; line-height: 1;">&times;</span>
+            </div>
+            <div style="padding: 1.5rem; overflow-y: auto; flex: 1; display: flex; flex-direction: column; gap: 1rem;">
+                <pre id="modal-report-markdown" style="background-color: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: var(--text-primary); overflow-x: auto; white-space: pre-wrap; word-break: break-all; height: 100%;"></pre>
+            </div>
+            <div style="padding: 1rem 1.5rem; border-top: 1px solid var(--border-color); display: flex; justify-content: space-between; align-items: center; background-color: #0b0f1a;">
+                <span style="font-size: 0.8rem; color: var(--text-secondary);">Saved to: <code>INCIDENT_REPORT.md</code></span>
+                <button onclick="closeReportModal()" style="background-color: var(--border-color); border: none; color: var(--text-primary); font-weight: 600; padding: 0.5rem 1.2rem; border-radius: 4px; cursor: pointer; font-size: 0.85rem;">
+                    Close
+                </button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Injected data for static HTML dashboard reports
+        window.ATTACKTRACE_INCIDENTS = [];
+
+        let currentIncident = null;
+        let cachedStats = null;
+        let socket = null;
+        const reconnectInterval = 3000;
+
+        // Colors
+        const severityColors = {
+            CRITICAL: 'var(--critical)',
+            HIGH: 'var(--high)',
+            MEDIUM: 'var(--medium)',
+            LOW: 'var(--low)',
+            INFO: 'var(--info)'
+        };
+
+        // Initialize dashboard
+        document.addEventListener('DOMContentLoaded', () => {
+            fetchStats();
+            connectWebSocket();
+        });
+
+        function connectWebSocket() {
+            const proto = window.location.protocol === 'https:' ? 'wss:' : 'ws:';
+            const wsUri = `${proto}//${window.location.host}/ws/alerts`;
+            
+            console.log(`Connecting to WebSocket: ${wsUri}`);
+            socket = new WebSocket(wsUri);
+
+            socket.onopen = () => {
+                console.log('WebSocket connection established.');
+                updateConnectionStatus(true);
+            };
+
+            socket.onmessage = (event) => {
+                try {
+                    const msg = JSON.parse(event.data);
+                    handleWebSocketMessage(msg);
+                } catch (e) {
+                    console.error('Failed to parse WebSocket message:', e);
+                }
+            };
+
+            socket.onclose = () => {
+                console.log('WebSocket connection closed. Attempting reconnect...');
+                updateConnectionStatus(false);
+                setTimeout(connectWebSocket, reconnectInterval);
+            };
+
+            socket.onerror = (err) => {
+                console.error('WebSocket error:', err);
+                socket.close();
+            };
+        }
+
+        function updateConnectionStatus(isLive) {
+            const dot = document.getElementById('status-dot');
+            const text = document.getElementById('status-text');
+            
+            if (isLive) {
+                dot.style.backgroundColor = 'var(--low)';
+                dot.style.boxShadow = '0 0 8px var(--low)';
+                dot.classList.add('pulsing');
+                text.innerText = 'LIVE STREAMING';
+            } else {
+                dot.style.backgroundColor = 'var(--critical)';
+                dot.style.boxShadow = '0 0 8px var(--critical)';
+                dot.classList.remove('pulsing');
+                text.innerText = 'DISCONNECTED (RECONNECTING...)';
+            }
+        }
+
+        function handleWebSocketMessage(msg) {
+            const { type, payload } = msg;
+
+            if (type === 'NEW_EVENT') {
+                prependLiveAlert(payload);
+            } else if (type === 'NEW_INCIDENT') {
+                handleNewIncident(payload);
+            } else if (type === 'METRIC_UPDATE') {
+                updateStatsUI(payload);
+            }
+        }
+
+        function prependLiveAlert(event) {
+            const container = document.getElementById('live-alerts-list');
+            if (!container) return;
+
+            // Remove placeholder if present
+            const placeholder = container.querySelector('.no-data-msg');
+            if (placeholder) placeholder.remove();
+
+            const item = document.createElement('div');
+            item.className = 'live-alert-item';
+
+            const sev = event.severity;
+            const badgeClass = `badge-${sev.toLowerCase()}`;
+            const timeStr = formatShortTime(event.base_event.timestamp);
+
+            item.innerHTML = `
+                <div style="display: flex; flex-direction: column; gap: 0.25rem;">
+                    <div style="font-weight: 600; font-size: 0.9rem;">
+                        ${event.base_event.event_type} - ${event.base_event.resource || 'None'}
+                    </div>
+                    <div style="font-size: 0.75rem; color: var(--text-secondary);">
+                        IP: ${event.base_event.source_ip || 'N/A'} | User: ${event.base_event.user || 'None'} | Time: ${timeStr}
+                    </div>
+                </div>
+                <div style="display: flex; align-items: center; gap: 10px;">
+                    <span style="font-size: 0.8rem; font-weight: 600; color: ${getRiskColor(event.risk_score)}">R:${event.risk_score}</span>
+                    <span class="severity-badge ${badgeClass}">${sev}</span>
+                </div>
+            `;
+
+            // Prepend new alert
+            container.insertBefore(item, container.firstChild);
+
+            // Cap at 30 items
+            if (container.children.length > 30) {
+                container.lastChild.remove();
+            }
+        }
+
+        function handleNewIncident(incident) {
+            const sidebar = document.getElementById('incidents-list');
+            if (!sidebar) return;
+
+            const existingCard = sidebar.querySelector(`.incident-card[data-id="${incident.incident_id}"]`);
+            const sev = incident.overall_severity || 'INFO';
+            
+            let tiBadge = '';
+            if (incident.threat_intel) {
+                const ti = incident.threat_intel;
+                const scoreColor = ti.reputation_score >= 75 ? 'var(--critical)' : (ti.reputation_score >= 40 ? 'var(--high)' : 'var(--low)');
+                tiBadge = `
+                    <div class="ti-badge-container" style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.4rem; color: var(--text-secondary);">
+                        <span>🌍 ${ti.country}</span>
+                        <span style="color: ${scoreColor}; font-weight: 600;">Rep: ${ti.reputation_score}/100</span>
+                        <span style="font-weight: 500;">${ti.threat_actor_category}</span>
+                    </div>
+                `;
+            }
+
+            const cardHtml = `
+                <div class="incident-header">
+                    <span class="severity-badge badge-${sev.toLowerCase()}">${sev}</span>
+                    <span class="confidence-indicator">Conf: ${incident.confidence_score}%</span>
+                </div>
+                <div class="incident-ip">Actor: ${incident.primary_actor_ip}</div>
+                <div class="incident-meta">
+                    <span>Steps: ${incident.steps.length}</span>
+                    <span>${formatShortTime(incident.start_time)}</span>
+                </div>
+                ${tiBadge}
+            `;
+
+            if (existingCard) {
+                existingCard.innerHTML = cardHtml;
+                // If currently open in view, update details
+                if (currentIncident && currentIncident.incident_id === incident.incident_id) {
+                    currentIncident = incident;
+                    renderNarrative(incident);
+                    renderTimelineSteps(incident);
+                    
+                    // Redraw graph if graph tab is active
+                    const activeTab = document.querySelector('.tab-panel.active');
+                    if (activeTab && activeTab.id === 'graph-tab') {
+                        renderGraph(incident);
+                    }
+                }
+            } else {
+                const placeholder = sidebar.querySelector('.no-data-msg');
+                if (placeholder) placeholder.remove();
+
+                const card = document.createElement('div');
+                card.className = 'incident-card';
+                card.setAttribute('data-id', incident.incident_id);
+                card.onclick = () => selectIncident(incident, card);
+                card.innerHTML = cardHtml;
+                
+                sidebar.insertBefore(card, sidebar.firstChild);
+
+                if (!currentIncident) {
+                    selectIncident(incident, card);
+                }
+            }
+        }
+
+        function fetchStats() {
+            fetch('/api/v1/stats')
+                .then(res => res.json())
+                .then(data => {
+                    cachedStats = data;
+                    updateStatsUI(data);
+                    fetchIncidents();
+                })
+                .catch(() => {
+                    computeLocalStats();
+                });
+        }
+
+        function fetchIncidents() {
+            fetch('/api/v1/incidents')
+                .then(res => res.json())
+                .then(data => {
+                    renderSidebar(data);
+                })
+                .catch(() => {
+                    renderSidebar(window.ATTACKTRACE_INCIDENTS);
+                });
+        }
+
+        function computeLocalStats() {
+            const data = window.ATTACKTRACE_INCIDENTS || [];
+            let maxRisk = 0;
+            data.forEach(inc => {
+                inc.steps.forEach(s => {
+                    if (s.risk_score > maxRisk) maxRisk = s.risk_score;
+                });
+            });
+            const localStats = {
+                total_ingested: data.reduce((acc, curr) => acc + curr.steps.length, 0),
+                total_dropped: 0,
+                total_incidents: data.length,
+                max_risk: maxRisk
+            };
+            updateStatsUI(localStats);
+            renderSidebar(data);
+        }
+
+        function updateStatsUI(stats) {
+            document.getElementById('stat-ingested').innerText = stats.total_ingested;
+            document.getElementById('stat-dropped').innerText = stats.total_dropped;
+            document.getElementById('stat-incidents').innerText = stats.total_incidents;
+            document.getElementById('stat-risk').innerText = stats.max_risk;
+            if (stats.max_risk >= 90) {
+                document.getElementById('stat-risk').style.color = 'var(--critical)';
+            } else if (stats.max_risk >= 70) {
+                document.getElementById('stat-risk').style.color = 'var(--high)';
+            } else {
+                document.getElementById('stat-risk').style.color = 'var(--text-primary)';
+            }
+        }
+
+        function renderSidebar(incidents) {
+            const container = document.getElementById('incidents-list');
+            container.innerHTML = '';
+            
+            if (!incidents || incidents.length === 0) {
+                container.innerHTML = '<div class="no-data-msg">No active campaigns.</div>';
+                return;
+            }
+
+            incidents.forEach((inc, idx) => {
+                const card = document.createElement('div');
+                card.className = 'incident-card';
+                card.setAttribute('data-id', inc.incident_id);
+                card.onclick = () => selectIncident(inc, card);
+
+                const sev = inc.overall_severity || 'INFO';
+
+                let tiBadge = '';
+                if (inc.threat_intel) {
+                    const ti = inc.threat_intel;
+                    const scoreColor = ti.reputation_score >= 75 ? 'var(--critical)' : (ti.reputation_score >= 40 ? 'var(--high)' : 'var(--low)');
+                    tiBadge = `
+                        <div class="ti-badge-container" style="display: flex; justify-content: space-between; font-size: 0.75rem; margin-top: 0.5rem; border-top: 1px solid rgba(255,255,255,0.05); padding-top: 0.4rem; color: var(--text-secondary);">
+                            <span>🌍 ${ti.country}</span>
+                            <span style="color: ${scoreColor}; font-weight: 600;">Rep: ${ti.reputation_score}/100</span>
+                            <span style="font-weight: 500;">${ti.threat_actor_category}</span>
+                        </div>
+                    `;
+                }
+
+                card.innerHTML = `
+                    <div class="incident-header">
+                        <span class="severity-badge badge-${sev.toLowerCase()}">${sev}</span>
+                        <span class="confidence-indicator">Conf: ${inc.confidence_score}%</span>
+                    </div>
+                    <div class="incident-ip">Actor: ${inc.primary_actor_ip}</div>
+                    <div class="incident-meta">
+                        <span>Steps: ${inc.steps.length}</span>
+                        <span>${formatShortTime(inc.start_time)}</span>
+                    </div>
+                    ${tiBadge}
+                `;
+
+                container.appendChild(card);
+                
+                if (idx === 0) {
+                    selectIncident(inc, card);
+                }
+            });
+        }
+
+        function selectIncident(incident, cardElement) {
+            currentIncident = incident;
+            
+            document.querySelectorAll('.incident-card').forEach(c => c.classList.remove('active'));
+            if (cardElement) {
+                cardElement.classList.add('active');
+            }
+
+            renderNarrative(incident);
+            renderTimelineSteps(incident);
+            renderGraph(incident);
+        }
+
+        function renderNarrative(incident) {
+            const storyContainer = document.getElementById('story-narrative');
+            const stagesStr = incident.stages_detected.join(', ');
+            const usersStr = incident.targeted_users.join(', ');
+            
+            let story = `**Incident Reconstructed:** Campaign \`${incident.incident_id}\` originated from Actor IP \`${incident.primary_actor_ip}\` targeting accounts: \`${usersStr || 'None'}\`.\n\n`;
+            story += `The attack chain spans from \`${incident.start_time}\` to \`${incident.end_time}\`, transitioning through **${incident.stages_detected.length} distinct kill-chain stages**: [${stagesStr}].\n\n`;
+            story += `The malicious entity escalated risk to a peak level of **${maxRiskOfIncident(incident)}** and has been classified as **${incident.overall_severity}** severity with a detection confidence of **${incident.confidence_score}%**. Detailed timeline log is listed below.`;
+            
+            storyContainer.innerHTML = story;
+        }
+
+        function maxRiskOfIncident(incident) {
+            return Math.max(...incident.steps.map(s => s.risk_score), 0);
+        }
+
+        function renderTimelineSteps(incident) {
+            const container = document.getElementById('steps-timeline');
+            container.innerHTML = '';
+
+            incident.steps.forEach(step => {
+                const node = document.createElement('div');
+                node.className = 'timeline-node';
+
+                node.innerHTML = `
+                    <div class="node-header">
+                        <span class="node-stage">${step.stage}</span>
+                        <span class="node-time">${step.timestamp}</span>
+                    </div>
+                    <div class="node-tech">${step.technique}</div>
+                    <div class="node-desc">${escapeHtml(step.description)}</div>
+                    <div class="node-meta">
+                        <span class="node-actor">Actor: ${step.actor}</span>
+                        <span class="node-risk" style="color: ${getRiskColor(step.risk_score)}">Risk: ${step.risk_score}</span>
+                    </div>
+                `;
+                container.appendChild(node);
+            });
+        }
+
+        function getRiskColor(risk) {
+            if (risk >= 90) return 'var(--critical)';
+            if (risk >= 70) return 'var(--high)';
+            if (risk >= 40) return 'var(--medium)';
+            return 'var(--low)';
+        }
+
+        function renderGraph(incident) {
+            const incidentId = incident.incident_id;
+            fetch(`/api/v1/incidents/${incidentId}/graph`)
+                .then(res => res.json())
+                .then(data => {
+                    drawSVG(data);
+                })
+                .catch(() => {
+                    const data = buildLocalGraph(incident);
+                    drawSVG(data);
+                });
+        }
+
+        function drawSVG(graph) {
+            const svg = document.getElementById('graph-svg');
+            const nodesGroup = document.getElementById('nodes-group');
+            const edgesGroup = document.getElementById('edges-group');
+            
+            nodesGroup.innerHTML = '';
+            edgesGroup.innerHTML = '';
+
+            const host = document.getElementById('svg-host');
+            const width = host.clientWidth || 800;
+            const height = host.clientHeight || 500;
+            svg.setAttribute('viewBox', `0 0 ${width} ${height}`);
+
+            const columns = {
+                attacker: width * 0.12,
+                user: width * 0.38,
+                resource: width * 0.62,
+                technique: width * 0.88
+            };
+
+            const nodesByType = {
+                attacker: [],
+                user: [],
+                resource: [],
+                technique: []
+            };
+
+            graph.nodes.forEach(node => {
+                if (nodesByType[node.type]) {
+                    nodesByType[node.type].push(node);
+                } else {
+                    nodesByType.resource.push(node);
+                }
+            });
+
+            const coords = {};
+            Object.keys(nodesByType).forEach(type => {
+                const list = nodesByType[type];
+                const x = columns[type];
+                list.forEach((node, idx) => {
+                    const y = (idx + 0.5) * (height / (list.length || 1));
+                    coords[node.id] = { x, y };
+                });
+            });
+
+            const typeColors = {
+                attacker: 'var(--critical)',
+                user: 'var(--high)',
+                resource: 'var(--info)',
+                technique: 'var(--medium)'
+            };
+
+            // Edges
+            graph.edges.forEach(edge => {
+                const src = coords[edge.source];
+                const dst = coords[edge.target];
+                if (!src || !dst) return;
+
+                let strokeColor = '#475569';
+                let strokeDash = '';
+                if (edge.action === 'progressed_to') {
+                    strokeColor = '#d500f9';
+                    strokeDash = '4,4';
+                } else if (edge.action === 'targeted') {
+                    strokeColor = 'var(--high)';
+                } else if (edge.action === 'accessed') {
+                    strokeColor = 'var(--info)';
+                } else if (edge.action === 'utilized') {
+                    strokeColor = 'var(--medium)';
+                }
+
+                const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+                const dx = dst.x - src.x;
+                const dy = dst.y - src.y;
+                const dr = Math.sqrt(dx * dx + dy * dy) * 1.5;
+                
+                path.setAttribute('d', `M ${src.x} ${src.y} A ${dr} ${dr} 0 0 1 ${dst.x} ${dst.y}`);
+                path.setAttribute('class', 'edge-line');
+                path.setAttribute('stroke', strokeColor);
+                path.setAttribute('marker-end', 'url(#arrow)');
+                if (strokeDash) {
+                    path.setAttribute('stroke-dasharray', strokeDash);
+                }
+                edgesGroup.appendChild(path);
+
+                const midX = (src.x + dst.x) / 2 + 10;
+                const midY = (src.y + dst.y) / 2 - 10;
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('x', midX);
+                text.setAttribute('y', midY);
+                text.setAttribute('class', 'edge-label');
+                text.textContent = edge.action;
+                edgesGroup.appendChild(text);
+            });
+
+            // Nodes
+            graph.nodes.forEach(node => {
+                const pos = coords[node.id];
+                if (!pos) return;
+
+                const color = typeColors[node.type];
+                const g = document.createElementNS('http://www.w3.org/2000/svg', 'g');
+                g.setAttribute('transform', `translate(${pos.x}, ${pos.y})`);
+
+                const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                circle.setAttribute('r', '15');
+                circle.setAttribute('class', 'node-circle');
+                circle.setAttribute('fill', '#0f172a');
+                circle.setAttribute('stroke', color);
+                g.appendChild(circle);
+
+                const inner = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
+                inner.setAttribute('r', '6');
+                inner.setAttribute('fill', getRiskColor(node.risk));
+                g.appendChild(inner);
+
+                const text = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                text.setAttribute('y', '32');
+                text.setAttribute('class', 'node-title-text');
+                text.textContent = node.label;
+                g.appendChild(text);
+
+                const typeText = document.createElementNS('http://www.w3.org/2000/svg', 'text');
+                typeText.setAttribute('y', '44');
+                typeText.setAttribute('class', 'node-text');
+                typeText.setAttribute('fill', 'var(--text-secondary)');
+                typeText.textContent = `${node.type.toUpperCase()} (R:${node.risk})`;
+                g.appendChild(typeText);
+
+                nodesGroup.appendChild(g);
+            });
+        }
+
+        function buildLocalGraph(incident) {
+            const nodes = {};
+            const edges = [];
+            const seen = new Set();
+            
+            const attackerId = `attacker:${incident.primary_actor_ip}`;
+            nodes[attackerId] = {
+                id: attackerId,
+                label: incident.primary_actor_ip,
+                type: 'attacker',
+                risk: Math.max(...incident.steps.map(s => s.risk_score), 0)
+            };
+
+            let prevTargetId = null;
+
+            incident.steps.forEach(step => {
+                const parts = step.actor.split(' -> ');
+                const user = parts[1] || 'None';
+
+                let resource = 'system';
+                const match = step.description.match(/Accessed\s+(\S+)/);
+                if (match) resource = match[1];
+                if (resource === 'N/A') resource = 'system';
+
+                let currTarget = attackerId;
+
+                if (user && user !== 'None') {
+                    const uId = `user:${user}`;
+                    if (!nodes[uId]) {
+                        nodes[uId] = { id: uId, label: user, type: 'user', risk: step.risk_score };
+                    } else {
+                        nodes[uId].risk = Math.max(nodes[uId].risk, step.risk_score);
+                    }
+                    
+                    const edgeKey = `${attackerId}->${uId}:targeted`;
+                    if (!seen.has(edgeKey)) {
+                        edges.push({ source: attackerId, target: uId, action: 'targeted', timestamp: step.timestamp });
+                        seen.add(edgeKey);
+                    }
+                    currTarget = uId;
+                }
+
+                if (resource && resource !== 'N/A' && resource !== 'system') {
+                    const rId = `resource:${resource}`;
+                    if (!nodes[rId]) {
+                        nodes[rId] = { id: rId, label: resource, type: 'resource', risk: step.risk_score };
+                    } else {
+                        nodes[rId].risk = Math.max(nodes[rId].risk, step.risk_score);
+                    }
+                    
+                    const src = (user && user !== 'None') ? `user:${user}` : attackerId;
+                    const edgeKey = `${src}->${rId}:accessed`;
+                    if (!seen.has(edgeKey)) {
+                        edges.push({ source: src, target: rId, action: 'accessed', timestamp: step.timestamp });
+                        seen.add(edgeKey);
+                    }
+                    currTarget = rId;
+                }
+
+                if (step.technique && step.technique !== 'N/A - Legitimate Action') {
+                    const techId = step.technique.split(' - ')[0].trim();
+                    const techName = step.technique.split(' - ')[1] || techId;
+                    const tId = `technique:${techId}`;
+                    if (!nodes[tId]) {
+                        nodes[tId] = { id: tId, label: `${techId}: ${techName}`, type: 'technique', risk: step.risk_score };
+                    } else {
+                        nodes[tId].risk = Math.max(nodes[tId].risk, step.risk_score);
+                    }
+                    
+                    const edgeKey = `${currTarget}->${tId}:utilized`;
+                    if (!seen.has(edgeKey)) {
+                        edges.push({ source: currTarget, target: tId, action: 'utilized', timestamp: step.timestamp });
+                        seen.add(edgeKey);
+                    }
+                }
+
+                if (prevTargetId && prevTargetId !== currTarget) {
+                    const edgeKey = `${prevTargetId}->${currTarget}:progressed_to`;
+                    if (!seen.has(edgeKey)) {
+                        edges.push({ source: prevTargetId, target: currTarget, action: 'progressed_to', timestamp: step.timestamp });
+                        seen.add(edgeKey);
+                    }
+                }
+                prevTargetId = currTarget;
+            });
+
+            return {
+                nodes: Object.values(nodes),
+                edges: edges
+            };
+        }
+
+        function switchTab(tabId) {
+            document.querySelectorAll('.tab-btn').forEach(btn => btn.classList.remove('active'));
+            document.querySelectorAll('.tab-panel').forEach(panel => panel.classList.remove('active'));
+
+            const tabButtons = document.querySelectorAll('.tab-btn');
+            if (tabId === 'timeline-tab') tabButtons[0].classList.add('active');
+            else if (tabId === 'graph-tab') tabButtons[1].classList.add('active');
+            else if (tabId === 'live-stream-tab') tabButtons[2].classList.add('active');
+            
+            document.getElementById(tabId).classList.add('active');
+
+            if (tabId === 'graph-tab' && currentIncident) {
+                setTimeout(() => renderGraph(currentIncident), 50);
+            }
+        }
+
+        function formatShortTime(timestamp) {
+            try {
+                const parts = timestamp.split('T');
+                if (parts.length > 1) {
+                    return parts[1].replace('Z', '');
+                }
+                return timestamp;
+            } catch {
+                return timestamp;
+            }
+        }
+
+        function escapeHtml(unsafe) {
+            return unsafe
+                .replace(/&/g, "&amp;")
+                .replace(/</g, "&lt;")
+                .replace(/>/g, "&gt;")
+                .replace(/"/g, "&quot;")
+                .replace(/'/g, "&#039;");
+        }
+
+        // Layer 5 SOAR Playbooks AJAX Triggers
+        function runSOARPlaybook() {
+            if (!currentIncident) {
+                alert('No active incident selected.');
+                return;
+            }
+            const incId = currentIncident.incident_id;
+
+            fetch(`/api/v1/incidents/${incId}/mitigate`, { method: 'POST' })
+                .then(res => {
+                    if (!res.ok) throw new Error('Mitigation API failed.');
+                    return res.json();
+                })
+                .then(actions => {
+                    displayPlaybookResult(actions);
+                })
+                .catch(err => {
+                    alert('Error executing playbook: ' + err.message);
+                });
+        }
+
+        function displayPlaybookResult(actions) {
+            const mitigationsList = document.getElementById('modal-mitigations-list');
+            mitigationsList.innerHTML = '';
+
+            if (actions.length === 0) {
+                mitigationsList.innerHTML = '<div class="no-data-msg">No mitigation actions needed for this severity level.</div>';
+                document.getElementById('modal-bash-script').innerText = '# No script generated.';
+            } else {
+                actions.forEach(action => {
+                    const card = document.createElement('div');
+                    card.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+                    card.style.border = '1px solid var(--border-color)';
+                    card.style.borderRadius = '4px';
+                    card.style.padding = '0.8rem 1rem';
+                    card.innerHTML = `
+                        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.4rem;">
+                            <span style="font-weight: 700; font-size: 0.85rem; color: var(--color-primary);">${action.action_type}</span>
+                            <span class="severity-badge badge-low" style="font-size: 0.65rem;">${action.status}</span>
+                        </div>
+                        <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem;">Target: <code>${action.target}</code></div>
+                        <div style="font-family: monospace; font-size: 0.75rem; color: var(--text-primary); background-color: rgba(255,255,255,0.02); padding: 0.4rem; border-radius: 4px;">${action.command_snippet}</div>
+                    `;
+                    mitigationsList.appendChild(card);
+                });
+
+                // Generate bash script text for display
+                let bashText = "#!/bin/bash\n# SOAR Remediation Script\n\n";
+                actions.forEach(a => {
+                    bashText += `# Action: ${a.action_type} on ${a.target}\n`;
+                    bashText += `${a.command_snippet}\n\n`;
+                });
+                bashText += "echo '[+] Automated mitigations completed successfully.'\n";
+                document.getElementById('modal-bash-script').innerText = bashText;
+            }
+
+            document.getElementById('playbook-modal').style.display = 'flex';
+        }
+
+        function closePlaybookModal() {
+            document.getElementById('playbook-modal').style.display = 'none';
+        }
+
+        function downloadForensicReport() {
+            if (!currentIncident) {
+                alert('No active incident selected.');
+                return;
+            }
+            const incId = currentIncident.incident_id;
+
+            fetch(`/api/v1/incidents/${incId}/report`)
+                .then(res => {
+                    if (!res.ok) throw new Error('Report generation failed.');
+                    return res.text();
+                })
+                .then(markdown => {
+                    document.getElementById('modal-report-markdown').innerText = markdown;
+                    document.getElementById('report-modal').style.display = 'flex';
+                })
+                .catch(err => {
+                    alert('Error fetching report: ' + err.message);
+                });
+        }
+
+        function closeReportModal() {
+            document.getElementById('report-modal').style.display = 'none';
+        }
+    </script>
+</body>
+</html>

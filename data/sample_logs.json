@@ -1,0 +1,78 @@
+[
+  {
+    "timestamp": "2026-08-23T17:30:00Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_SUCCESS",
+    "user": "sanjeeva",
+    "source_ip": "192.168.1.100",
+    "resource": "/portal/login",
+    "status": 200,
+    "raw_payload": {
+      "session_id": "sess_98374298",
+      "auth_method": "mfa"
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:31:15Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_FAILED",
+    "user": "admin",
+    "source_ip": "203.0.113.45",
+    "resource": "/portal/login",
+    "status": 401,
+    "raw_payload": {
+      "failure_reason": "invalid_password",
+      "attempt_number": 3
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:32:05Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": "developer_key_01",
+    "source_ip": "198.51.100.12",
+    "resource": "/api/v1/metrics",
+    "status": 200,
+    "raw_payload": {
+      "http_method": "GET",
+      "response_time_ms": 42
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:33:10Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": "guest_user",
+    "source_ip": "198.51.100.24",
+    "resource": "/api/v1/admin/settings",
+    "status": 403,
+    "raw_payload": {
+      "http_method": "POST",
+      "error_message": "PermissionDenied"
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:34:22Z",
+    "source_type": "database",
+    "event_type": "QUERY_EXECUTION",
+    "user": "app_backend",
+    "source_ip": "10.0.1.5",
+    "resource": "SELECT * FROM security_policies WHERE active = 1",
+    "status": 200,
+    "raw_payload": {
+      "rows_returned": 15,
+      "execution_time_ms": 3
+    }
+  },
+  {
+    "source_type": "auth",
+    "event_type": "LOGIN_SUCCESS",
+    "user": "corrupted_record",
+    "source_ip": "127.0.0.1",
+    "resource": "/login",
+    "status": 200,
+    "raw_payload": {
+      "note": "This record is missing the mandatory 'timestamp' field to test drop handling."
+    }
+  }
+]
