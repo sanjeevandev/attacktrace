@@ -61,7 +61,7 @@ def test_threat_intel_resolution():
 
 def test_playbook_generation(mock_incident):
     engine = PlaybookEngine()
-    actions = engine.generate_mitigations(mock_incident)
+    actions = engine.generate_mitigations(mock_incident, platform="linux")
     
     # Assert generated mitigations count and type
     assert len(actions) == 3
@@ -83,7 +83,7 @@ def test_playbook_generation(mock_incident):
 
     # Verify mitigation script generation
     script_path = "test_mitigate.sh"
-    script_content = engine.export_mitigation_script(actions, script_path)
+    script_content = engine.export_mitigation_script(actions, script_path, platform="linux")
     assert os.path.exists(script_path)
     assert "#!/bin/bash" in script_content
     assert "iptables" in script_content
@@ -94,13 +94,102 @@ def test_playbook_generation(mock_incident):
         os.remove(script_path)
 
 
+def test_cross_platform_windows_mitigations(mock_incident):
+    """
+    Tests SOAR mitigation and rollback generation for Windows PowerShell.
+    """
+    engine = PlaybookEngine()
+    actions = engine.generate_mitigations(mock_incident, platform="windows")
+    assert len(actions) == 3
+
+    # 1. Firewall block
+    fw = next(act for act in actions if act.action_type == "FIREWALL_BLOCK")
+    assert "New-NetFirewallRule" in fw.command_snippet
+    assert "ATTACKTRACE_BLOCK_185.220.101.5" in fw.command_snippet
+    assert "Remove-NetFirewallRule" in fw.rollback_snippet
+    assert fw.rollback_token.startswith("RBK-")
+    assert fw.status == "SIMULATED"
+
+    # 2. Session revoke
+    sess = next(act for act in actions if act.action_type == "SESSION_REVOKE")
+    assert "Stop-Process" in sess.command_snippet
+    assert "admin" in sess.command_snippet
+    assert "account unlock required" in sess.rollback_snippet
+
+    # 3. Host isolation
+    iso = next(act for act in actions if act.action_type == "ISOLATE_HOST")
+    assert "Disable-NetAdapter" in iso.command_snippet
+    assert "Enable-NetAdapter" in iso.rollback_snippet
+
+    # 4. Script export
+    ps1_path = "test_mitigate.ps1"
+    content = engine.export_mitigation_script(actions, ps1_path, platform="windows")
+    assert os.path.exists(ps1_path)
+    assert "POWERSHELL" in content
+    assert "New-NetFirewallRule" in content
+    assert "ROLLBACK PROCEDURES" in content
+    if os.path.exists(ps1_path):
+        os.remove(ps1_path)
+
+
+def test_cross_platform_macos_mitigations(mock_incident):
+    """
+    Tests SOAR mitigation and rollback generation for macOS pfctl.
+    """
+    engine = PlaybookEngine()
+    actions = engine.generate_mitigations(mock_incident, platform="macos")
+    assert len(actions) == 3
+
+    # 1. Firewall block (pfctl)
+    fw = next(act for act in actions if act.action_type == "FIREWALL_BLOCK")
+    assert "pfctl" in fw.command_snippet
+    assert "185.220.101.5" in fw.command_snippet
+    assert "pfctl -a attacktrace -F rules" in fw.rollback_snippet
+    assert fw.rollback_token.startswith("RBK-")
+
+    # 2. Host isolation (en0)
+    iso = next(act for act in actions if act.action_type == "ISOLATE_HOST")
+    assert "ifconfig en0 down" in iso.command_snippet
+    assert "ifconfig en0 up" in iso.rollback_snippet
+
+
+def test_atomic_rollback_generation_and_export(mock_incident):
+    """
+    Tests atomic reverse rollback script generation for both bash and PowerShell.
+    """
+    engine = PlaybookEngine()
+
+    # Linux rollback script
+    actions_linux = engine.generate_mitigations(mock_incident, platform="linux")
+    rbk_sh_path = "test_rollback.sh"
+    content_sh = engine.export_rollback_script(actions_linux, rbk_sh_path, platform="linux")
+    assert os.path.exists(rbk_sh_path)
+    assert "#!/bin/bash" in content_sh
+    assert "ATOMIC SOAR ROLLBACK" in content_sh
+    assert "iptables -D" in content_sh
+    assert "eth0 up" in content_sh
+    if os.path.exists(rbk_sh_path):
+        os.remove(rbk_sh_path)
+
+    # Windows rollback script
+    actions_win = engine.generate_mitigations(mock_incident, platform="windows")
+    rbk_ps1_path = "test_rollback.ps1"
+    content_ps1 = engine.export_rollback_script(actions_win, rbk_ps1_path, platform="windows")
+    assert os.path.exists(rbk_ps1_path)
+    assert "POWERSHELL" in content_ps1
+    assert "Remove-NetFirewallRule" in content_ps1
+    assert "Enable-NetAdapter" in content_ps1
+    if os.path.exists(rbk_ps1_path):
+        os.remove(rbk_ps1_path)
+
+
 def test_report_generation(mock_incident):
     ti_engine = ThreatIntelEngine()
     reporter = IncidentReporter()
     playbook = PlaybookEngine()
     
     threat_data = ti_engine.lookup_ip(mock_incident.primary_actor_ip)
-    actions = playbook.generate_mitigations(mock_incident)
+    actions = playbook.generate_mitigations(mock_incident, platform="linux")
     
     report_path = "TEST_INCIDENT_REPORT.md"
     report_content = reporter.generate_markdown_report(
@@ -116,3 +205,68 @@ def test_report_generation(mock_incident):
     # Clean up
     if os.path.exists(report_path):
         os.remove(report_path)
+
+
+def test_soar_db_persistence_with_tokens(mock_incident):
+    """
+    Verifies that generated SOAR actions with rollback tokens are properly saved
+    and retrieved from the SQLite database.
+    """
+    from src.db import DatabaseManager
+
+    db = DatabaseManager(":memory:")
+    engine = PlaybookEngine()
+
+    # Save incident first
+    db.save_incident(mock_incident, is_demo=False)
+
+    # Generate and persist actions
+    actions = engine.generate_mitigations(mock_incident, platform="windows")
+    db.save_soar_actions(mock_incident.incident_id, actions)
+
+    # Retrieve from DB
+    retrieved = db.get_soar_actions(mock_incident.incident_id)
+    assert len(retrieved) == 3
+
+    for act in retrieved:
+        assert act.rollback_token.startswith("RBK-")
+        assert act.rollback_snippet != ""
+        assert act.status == "SIMULATED"
+
+    db.close()
+
+
+def test_api_mitigate_and_rollback_endpoints():
+    """
+    Tests POST /api/v1/incidents/{incident_id}/mitigate and
+    GET /api/v1/incidents/{incident_id}/rollback-script.
+    """
+    from fastapi.testclient import TestClient
+    from src.api import app, pipeline
+
+    client = TestClient(app)
+
+    # Ingest logs to create an active incident
+    scenario_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.abspath(__file__))),
+        "data",
+        "attack_scenario.json"
+    )
+    pipeline.run_pipeline(scenario_path)
+    assert len(pipeline.incidents) >= 1
+    incident_id = pipeline.incidents[0].incident_id
+
+    # 1. POST mitigate with Windows platform
+    res_mitigate = client.post(f"/api/v1/incidents/{incident_id}/mitigate?platform=windows")
+    assert res_mitigate.status_code == 200
+    actions_data = res_mitigate.json()
+    assert len(actions_data) >= 1
+    for act in actions_data:
+        assert act["rollback_token"].startswith("RBK-")
+        assert act["rollback_snippet"] != ""
+
+    # 2. GET rollback script
+    res_rbk = client.get(f"/api/v1/incidents/{incident_id}/rollback-script?platform=windows")
+    assert res_rbk.status_code == 200
+    assert "POWERSHELL" in res_rbk.text
+    assert "Remove-NetFirewallRule" in res_rbk.text

@@ -1,0 +1,83 @@
+[
+  {
+    "timestamp": "2026-10-31T14:00:00Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_FAILED",
+    "user": "jdoe",
+    "source_ip": "198.51.100.45",
+    "resource": "/ad/kerberos/auth",
+    "status": 401,
+    "raw_payload": {
+      "attempt": 4,
+      "service": "krbtgt/CORP.LOCAL",
+      "protocol": "Kerberos",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T14:02:00Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_SUCCESS",
+    "user": "jdoe",
+    "source_ip": "198.51.100.45",
+    "resource": "/rdp/gateway",
+    "status": 200,
+    "raw_payload": {
+      "auth_method": "NTLMv2",
+      "logon_type": 10,
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T14:05:00Z",
+    "source_type": "endpoint",
+    "event_type": "PROCESS_CREATION",
+    "user": "jdoe",
+    "source_ip": "198.51.100.45",
+    "resource": "powershell.exe -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAg...",
+    "status": 0,
+    "raw_payload": {
+      "parent_process": "cmd.exe",
+      "process_id": 4820,
+      "command": "powershell -enc JABzAD0ATgBlAHcALQBPAGIAagBlAGMAdAAg...",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T14:08:00Z",
+    "source_type": "endpoint",
+    "event_type": "COMMAND_EXECUTION",
+    "user": "jdoe",
+    "source_ip": "198.51.100.45",
+    "resource": "whoami /priv; Enable-Privilege SeDebugPrivilege",
+    "status": 0,
+    "raw_payload": {
+      "elevated": true,
+      "token_privileges": [
+        "SeDebugPrivilege",
+        "SeTcbPrivilege"
+      ],
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T14:12:00Z",
+    "source_type": "filesystem",
+    "event_type": "FILE_ACCESS",
+    "user": "jdoe",
+    "source_ip": "198.51.100.45",
+    "resource": "\\\\dc01\\sysvol\\CORP\\credentials\\ntds.dit select * from credentials",
+    "status": 200,
+    "raw_payload": {
+      "target_share": "SYSVOL",
+      "file_name": "ntds.dit",
+      "action": "dump_credentials",
+      "is_demo": true
+    },
+    "is_demo": true
+  }
+]

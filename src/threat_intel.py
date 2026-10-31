@@ -1,16 +1,20 @@
 import json
 import os
 import ipaddress
+from pathlib import Path
+from typing import Optional
 from src.models import ThreatIntelData, AttackIncident
+
+DEFAULT_INTEL_DB_PATH = str(Path(__file__).resolve().parent.parent / "data" / "mock_threat_intel.json")
 
 
 class ThreatIntelEngine:
-    def __init__(self, db_path: str = "/home/sanjeeva/attacktrace/data/mock_threat_intel.json"):
-        self.db_path = db_path
+    def __init__(self, db_path: Optional[str] = None):
+        self.db_path = str(db_path) if db_path is not None else DEFAULT_INTEL_DB_PATH
         self.database = {}
-        if os.path.exists(db_path):
+        if os.path.exists(self.db_path):
             try:
-                with open(db_path, "r", encoding="utf-8") as f:
+                with open(self.db_path, "r", encoding="utf-8") as f:
                     self.database = json.load(f)
             except Exception as e:
                 print(f"Error loading mock_threat_intel database: {e}")
@@ -39,15 +43,6 @@ class ThreatIntelEngine:
                 is_tor_exit_node=False
             )
 
-        if self.is_private_ip(ip):
-            return ThreatIntelData(
-                ip=ip,
-                reputation_score=0,
-                threat_actor_category="Clean",
-                country="Private/Internal",
-                is_tor_exit_node=False
-            )
-
         if ip in self.database:
             entry = self.database[ip]
             return ThreatIntelData(
@@ -56,6 +51,15 @@ class ThreatIntelEngine:
                 threat_actor_category=entry.get("threat_actor_category", "Clean"),
                 country=entry.get("country", "Unknown"),
                 is_tor_exit_node=entry.get("is_tor_exit_node", False)
+            )
+
+        if self.is_private_ip(ip):
+            return ThreatIntelData(
+                ip=ip,
+                reputation_score=0,
+                threat_actor_category="Clean",
+                country="Private/Internal",
+                is_tor_exit_node=False
             )
 
         # Default for other unknown public IPs

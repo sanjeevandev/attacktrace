@@ -29,7 +29,7 @@ def map_tactic_to_stage(tactic: str) -> KillChainStage:
         return KillChainStage.CREDENTIAL_ACCESS
     elif "execution" in t:
         return KillChainStage.EXECUTION
-    elif "privilege" in t or "evasion" in t:
+    elif "privilege" in t or "evasion" in t or "persistence" in t:
         return KillChainStage.PRIVILEGE_ESCALATION
     elif "collection" in t or "exfiltration" in t:
         return KillChainStage.EXFILTRATION
@@ -40,10 +40,17 @@ class ThreatCorrelator:
     def __init__(self) -> None:
         pass
 
-    def correlate(self, events: List[EnrichedSecurityEvent], time_window_minutes: int = 60) -> List[AttackIncident]:
+    def correlate(
+        self,
+        events: List[EnrichedSecurityEvent],
+        time_window_minutes: int = 60,
+        max_campaign_duration_minutes: int = 240,
+    ) -> List[AttackIncident]:
         """
         Correlates enriched security events into AttackIncidents based on actor IPs, users,
-        and temporal proximity.
+        and temporal proximity with dual-bounded sliding windows:
+        1. Maximum Inter-Event Gap: time_window_minutes (default: 60 min)
+        2. Maximum Campaign Duration: max_campaign_duration_minutes (default: 240 min)
         """
         if not events:
             return []
@@ -65,7 +72,11 @@ class ThreatCorrelator:
                 last_time = parse_time(last_evt.base_event.timestamp)
                 time_diff_mins = (evt_time - last_time).total_seconds() / 60.0
 
-                if time_diff_mins <= time_window_minutes:
+                root_evt = group[0]
+                root_time = parse_time(root_evt.base_event.timestamp)
+                total_duration_mins = (evt_time - root_time).total_seconds() / 60.0
+
+                if time_diff_mins <= time_window_minutes and total_duration_mins <= max_campaign_duration_minutes:
                     # Link by IP or User
                     group_ips = {
                         e.base_event.source_ip
@@ -108,6 +119,19 @@ class ThreatCorrelator:
         incidents: List[AttackIncident] = []
 
         for group in groups:
+            # Check repeated auth failures within group to promote to FAILED_AUTH_BURST
+            auth_fail_count = sum(
+                1 for e in group
+                if "AUTH_FAILURE" in e.indicators or "FAILED_AUTH_BURST" in e.indicators
+            )
+            if auth_fail_count >= 2:
+                for e in group:
+                    if "AUTH_FAILURE" in e.indicators and "FAILED_AUTH_BURST" not in e.indicators:
+                        e.indicators.append("FAILED_AUTH_BURST")
+                        e.risk_score = max(e.risk_score, 35)
+                        if e.severity in [SeverityLevel.INFO, SeverityLevel.LOW]:
+                            e.severity = SeverityLevel.MEDIUM
+
             # 1. Determine unique Kill Chain stages represented
             stages_set: Set[KillChainStage] = set()
             max_risk = 0
@@ -168,6 +192,8 @@ class ThreatCorrelator:
                     description=desc,
                     actor=actor_str,
                     risk_score=event.risk_score,
+                    step_index=len(steps),
+                    parent_step_id=steps[-1].step_id if steps else None,
                 )
                 steps.append(step)
 

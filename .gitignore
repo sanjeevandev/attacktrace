@@ -7,5 +7,13 @@ env/
 reports/
 *.egg-info
 mitigate.sh
+mitigate.ps1
+rollback.sh
+rollback.ps1
 INCIDENT_REPORT.md
 report.html
+*.db
+*.db-wal
+*.db-shm
+
+

@@ -1,6 +1,7 @@
 import os
 from contextlib import asynccontextmanager
-from typing import List, Dict, Any
+from pathlib import Path
+from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from pydantic import BaseModel
@@ -10,18 +11,25 @@ from src.visualizer import GraphVisualizer
 from src.websocket_manager import ConnectionManager
 from src.models import UnifiedEvent
 from src.threat_intel import ThreatIntelEngine
-from src.playbooks import PlaybookEngine
+from src.playbooks import PlaybookEngine, PlatformSOARAdapter
 from src.reporter import IncidentReporter
 
-# In-memory pipeline and Layer 5 engine instances
-pipeline = AttackTracePipeline()
+from src.db import DatabaseManager
+from src.demo_manager import ScenarioManager
+
+BASE_DIR = Path(__file__).resolve().parent.parent
+
+# In-memory pipeline, database manager, and Layer 5 engine instances
+db_manager = DatabaseManager()
+pipeline = AttackTracePipeline(db=db_manager)
 visualizer = GraphVisualizer()
 ws_manager = ConnectionManager()
 ti_engine = ThreatIntelEngine()
 playbook_engine = PlaybookEngine()
 reporter = IncidentReporter()
+scenario_manager = ScenarioManager()
 
-DEFAULT_SCENARIO_PATH = "/home/sanjeeva/attacktrace/data/attack_scenario.json"
+DEFAULT_SCENARIO_PATH = str(BASE_DIR / "data" / "attack_scenario.json")
 
 
 def enrich_all_incidents():
@@ -146,8 +154,8 @@ def get_dashboard():
     """
     Serves the interactive SOC console.
     """
-    template_path = "/home/sanjeeva/attacktrace/templates/dashboard.html"
-    if not os.path.exists(template_path):
+    template_path = BASE_DIR / "templates" / "dashboard.html"
+    if not template_path.exists():
         raise HTTPException(status_code=404, detail="Dashboard template file not found")
 
     with open(template_path, "r", encoding="utf-8") as f:
@@ -242,26 +250,70 @@ async def trigger_stream_ingest(payload: List[Dict[str, Any]]):
 
 
 @app.post("/api/v1/incidents/{incident_id}/mitigate")
-def mitigate_incident(incident_id: str):
+def mitigate_incident(incident_id: str, platform: Optional[str] = "auto"):
     """
     Generates remediation actions for the specified incident, 
-    writes mitigate.sh, and returns the actions.
+    saves to SQLite database with rollback tokens, writes script, and returns actions.
     """
     target_incident = None
     for inc in pipeline.incidents:
         if inc.incident_id == incident_id:
             target_incident = inc
             break
-            
+
+    if not target_incident and db_manager:
+        target_incident = db_manager.get_incident_by_id(incident_id)
+
     if not target_incident:
         raise HTTPException(status_code=404, detail="Incident not found")
-        
-    actions = playbook_engine.generate_mitigations(target_incident)
+
+    actions = playbook_engine.generate_mitigations(target_incident, platform=platform)
+
+    # Persist SOAR actions with atomic rollback tokens to SQLite
+    if db_manager:
+        db_manager.save_soar_actions(target_incident.incident_id, actions)
+
+    norm_p = PlatformSOARAdapter.normalize_platform(platform)
+    ext = "ps1" if norm_p == "windows" else "sh"
     project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-    output_script = os.path.join(project_dir, "mitigate.sh")
-    playbook_engine.export_mitigation_script(actions, output_script)
-    
+    output_script = os.path.join(project_dir, f"mitigate.{ext}")
+    playbook_engine.export_mitigation_script(actions, output_script, platform=platform)
+
     return [act.to_dict() for act in actions]
+
+
+@app.get("/api/v1/incidents/{incident_id}/rollback-script", response_class=PlainTextResponse)
+def get_rollback_script(incident_id: str, platform: Optional[str] = "auto"):
+    """
+    Generates and returns the downloadable atomic twin rollback script.
+    """
+    target_incident = None
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            target_incident = inc
+            break
+
+    if not target_incident and db_manager:
+        target_incident = db_manager.get_incident_by_id(incident_id)
+
+    if not target_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    actions = []
+    if db_manager:
+        actions = db_manager.get_soar_actions(incident_id)
+
+    if not actions:
+        actions = playbook_engine.generate_mitigations(target_incident, platform=platform)
+
+    norm_p = PlatformSOARAdapter.normalize_platform(platform)
+    ext = "ps1" if norm_p == "windows" else "sh"
+    project_dir = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+    output_script = os.path.join(project_dir, f"rollback.{ext}")
+    content = playbook_engine.export_rollback_script(actions, output_script, platform=platform)
+
+    media_type = "text/plain" if norm_p == "windows" else "text/x-shellscript"
+    return PlainTextResponse(content=content, media_type=media_type)
 
 
 @app.get("/api/v1/incidents/{incident_id}/report", response_class=PlainTextResponse)
@@ -289,3 +341,48 @@ def get_incident_report(incident_id: str):
     )
     
     return PlainTextResponse(content=report_content, media_type="text/markdown")
+
+
+@app.get("/api/v1/demo/scenarios")
+def list_demo_scenarios():
+    """
+    Returns a list of available multi-platform synthetic attack scenarios.
+    """
+    return scenario_manager.list_available_scenarios()
+
+
+@app.post("/api/v1/demo/load/{scenario_name}")
+def load_demo_scenario(scenario_name: str):
+    """
+    Loads and correlates the selected synthetic scenario into the database and active memory.
+    """
+    try:
+        incidents = scenario_manager.run_scenario(scenario_name, db=db_manager)
+    except FileNotFoundError:
+        raise HTTPException(status_code=404, detail=f"Scenario '{scenario_name}' not found")
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to load scenario: {e}")
+
+    # Synchronize in-memory pipeline state
+    pipeline.incidents = incidents
+    enrich_all_incidents()
+
+    return {
+        "status": "success",
+        "scenario": scenario_name,
+        "incidents_created": len(incidents),
+        "incidents": [inc.to_dict() for inc in incidents],
+    }
+
+
+@app.post("/api/v1/demo/reset")
+def reset_demo_scenario():
+    """
+    Purges synthetic demo records cleanly from the database and active memory.
+    """
+    purged = scenario_manager.reset_demo_state(db=db_manager)
+    pipeline.incidents = []
+    return {
+        "status": "success",
+        "purged": purged,
+    }

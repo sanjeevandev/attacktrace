@@ -3,9 +3,13 @@ from src.models import EnrichedSecurityEvent, SeverityLevel, UnifiedEvent
 from src.mitre_mapper import MitreMapper
 
 INDICATOR_WEIGHTS: Dict[str, int] = {
+    "AUTH_FAILURE": 15,
     "SUSPICIOUS_WEB_RECON": 25,
     "FAILED_AUTH_BURST": 35,
+    "SUSPICIOUS_SCRIPT_EXECUTION": 40,
     "ADMIN_CREDENTIAL_ACCESS": 45,
+    "PERSISTENCE_MECHANISM": 50,
+    "CREDENTIAL_STORE_ACCESS": 60,
     "SQL_INJECTION_PATTERN": 75,
     "UNAUTHORIZED_EXFILTRATION": 80,
     "PRIVILEGE_ESCALATION": 85,

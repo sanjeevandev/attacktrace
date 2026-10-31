@@ -15,11 +15,10 @@ from src.pipeline import AttackTracePipeline
 from src.correlation import ThreatCorrelator
 from src.timeline import AttackTimelineRenderer
 from src.visualizer import GraphVisualizer
-from src.api import app
-from src.websocket_manager import ConnectionManager
 from src.threat_intel import ThreatIntelEngine
 from src.playbooks import PlaybookEngine
 from src.reporter import IncidentReporter
+from src.db import DatabaseManager
 
 __all__ = [
     "UnifiedEvent",
@@ -37,9 +36,8 @@ __all__ = [
     "ThreatCorrelator",
     "AttackTimelineRenderer",
     "GraphVisualizer",
-    "app",
-    "ConnectionManager",
     "ThreatIntelEngine",
     "PlaybookEngine",
     "IncidentReporter",
+    "DatabaseManager",
 ]

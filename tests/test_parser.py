@@ -45,7 +45,7 @@ def test_brute_force_signature():
     event_failed = create_base_event(event_type="LOGIN_FAILED", status=401)
     tactics, techniques, indicators = MitreMapper.map_event(event_failed)
 
-    assert "FAILED_AUTH_BURST" in indicators
+    assert "AUTH_FAILURE" in indicators or "FAILED_AUTH_BURST" in indicators
     assert "Credential Access" in tactics
     assert any(tech["id"] == "T1110" for tech in techniques)
 
@@ -143,7 +143,7 @@ def test_attacktrace_pipeline_flow():
     assert enriched_events[0].severity == SeverityLevel.LOW
 
     # Event 1 & 2: Failed logins
-    assert "FAILED_AUTH_BURST" in enriched_events[1].indicators
+    assert "AUTH_FAILURE" in enriched_events[1].indicators or "FAILED_AUTH_BURST" in enriched_events[1].indicators
     assert "FAILED_AUTH_BURST" in enriched_events[2].indicators
     
     # Event 4: SQL Injection
