@@ -1,102 +1,198 @@
 # ATTACKTRACE — High-Fidelity Threat Correlation & SOAR Orchestration
 
-This document details the architectural blueprints, sliding-window algorithms, risk-scoring mechanics, and extensibility design of the ATTACKTRACE cybersecurity platform.
+This document details the complete 6-layer architecture, data models, persistence schemas, correlation mechanics, forensic engines, and extensibility design of **ATTACKTRACE v1.0.0**.
 
 ---
 
 ## 1. Architectural Blueprint & Data Flow
 
-ATTACKTRACE implements a structured, non-blocking 5-layer pipeline that transforms raw unstructured logging telemetry into correlated threat incidents, live visualization elements, and executable SOAR playbooks.
+ATTACKTRACE implements a structured, modular 6-layer pipeline that transforms raw unstructured logging telemetry into correlated threat incidents, live visualization elements, triple-format forensic dossiers, and atomic SOAR remediation playbooks.
 
 ```mermaid
 graph TD
-    RawLogs[Raw JSON Logs] -->|Layer 1: Normalization| L1[UnifiedEvent Schema]
-    L1 -->|Layer 2: Inspection| L2[EnrichedSecurityEvent]
-    L2 -->|Layer 3: Graph Correlation| L3[AttackIncident Graph]
-    L3 -->|Layer 4: Real-time Pub-Sub| L4[FastAPI & WebSockets]
-    L3 -->|Layer 5: Mitigation Scripting| L5[SOAR Playbook Engine]
-    L5 -->|Output| Action[mitigate.sh & INCIDENT_REPORT.md]
+    RawLogs[Multi-Format Telemetry Stream<br/>JSON, JSONL, Syslog, Windows EVTX, Web Logs] -->|Layer 1: Normalization & Streaming| L1[UnifiedEvent Schema]
+    L1 -->|Layer 2: Inspection & Heuristics| L2[EnrichedSecurityEvent]
+    L2 -->|Layer 3: Dual-Bounded Graph Correlation| L3[AttackIncident Graph]
+    L3 -->|Layer 4: Relational Persistence & Isolation| L4[(SQLite Storage Engine)]
+    L3 -->|Layer 5: SOAR & Forensic Dossier Engine| L5[SOAR Playbooks & Forensic Reports]
+    L3 -->|Layer 6: Delivery & Replayer Hub| L6[FastAPI, WebSockets & Dark SOC Replayer]
+    
+    L5 -->|Outputs| Outputs[mitigate.sh / mitigate.ps1<br/>rollback.sh / rollback.ps1<br/>INCIDENT_REPORT.md<br/>dossier.json<br/>navigator.json]
 ```
 
-### 1.1. Processing Layer Functions
+### 1.1. Processing Layer Responsibilities
 
-1. **Layer 1 (Ingestion)**: Performs schema validation and strict structure enforcement. Malformed log entries (missing `timestamp`, `source_type`, or `event_type`) are dropped safely into a structured error list, preventing pipeline crashes.
-2. **Layer 2 (Enrichment)**: Runs signatures against HTTP paths, request parameters, and database queries. Extracts MITRE ATT&CK TTPs and scores the risk impact.
-3. **Layer 3 (Correlation)**: Groups enriched events by actor (IP address) and targets (usernames). Orders events chronologically, tracking transition bounds.
-4. **Layer 4 (Delivery)**: Exposes endpoints for streaming events and querying incident topologies. Streams live events dynamically over WebSocket channels using non-blocking connection hubs.
-5. **Layer 5 (Orchestration)**: Integrates Threat Intelligence and generates SOAR playbook scripts.
+1. **Layer 1 (Multi-Format Telemetry Ingestion)**:
+   - Memory-efficient streaming generator for Newline-Delimited JSON (`.jsonl`) avoiding Out-Of-Memory (OOM) on large log files.
+   - Normalizes Windows Security Event Logs (`WindowsEventAdapter` for Event IDs 4624, 4625, 4688, 4672).
+   - Normalizes RFC 3164 and RFC 5424 Syslog (`SyslogAdapter` for SSH failed/accepted logins and sudo commands).
+   - Normalizes Apache / Nginx Web Server Access Logs (`WebLogAdapter` for Combined/Common log format with URL query decoding).
+   - Validates canonical `UnifiedEvent` schema and quarantines malformed records into `dropped_events` with line numbers and reasons.
+
+2. **Layer 2 (Heuristic Parser & MITRE ATT&CK Enrichment)**:
+   - Evaluates telemetry against calibrated MITRE ATT&CK Enterprise signatures.
+   - Computes weighted risk scores ($0 \le R \le 100$) and maps them to severity tiers (`INFO`, `LOW`, `MEDIUM`, `HIGH`, `CRITICAL`).
+
+3. **Layer 3 (Dual-Bounded Sliding Window Correlation)**:
+   - Groups events by primary initiating actor (`source_ip`) and targeted users.
+   - Applies dual-bounding temporal thresholds to split long campaigns and detect lateral movement.
+   - Calculates dynamic incident confidence scores ($C$) and constructs directed causal attack graph topologies.
+
+4. **Layer 4 (SQLite Persistence & Clean Demo Isolation)**:
+   - Persists normalized events, enriched events, incidents, steps, and SOAR mitigation actions into an ACID relational database (`~/.attacktrace/attacktrace.db` or custom file).
+   - Enforces strict isolation with `is_demo=1` (purgeable synthetic demo state) versus `is_demo=0` (permanent production audit history).
+
+5. **Layer 5 (SOAR Playbook & Forensic Dossier Engine)**:
+   - Resolves IP attribution using offline Threat Intelligence.
+   - Generates cross-platform containment playbooks (`mitigate.sh` or `mitigate.ps1`).
+   - Generates reverse atomic rollback scripts (`rollback.sh` or `rollback.ps1`) backed by cryptographic SHA-256 tokens.
+   - Compiles triple forensic formats: Executive Markdown report, machine-readable JSON dossier, and official MITRE ATT&CK Navigator v4.5 layer.
+
+6. **Layer 6 (WebSockets & Dark SOC Web Console)**:
+   - Real-time pub/sub alert broadcasting via FastAPI WebSocket hub.
+   - High-density dark SOC console (`#070a13` background, Slate `#0f1422` cards, Cyan `#00d2ff` accents).
+   - **Time-Travel Attack Replayer**: Interactive timeline scrubber dynamically filtering D3 nodes/edges with an animated radar pulse (`@keyframes radar-ripple`) highlighting active adversary steps.
+   - Multi-platform scenario switcher modal and 1-click forensic download center.
 
 ---
 
-## 2. Sliding-Window Correlation Algorithm
+## 2. Dual-Bounding Temporal Correlation Algorithm
 
-Isolation of network alerts leads to alert fatigue. ATTACKTRACE reconstructs full attack stories by correlating disparate events over time.
+Traditional SIEMs produce excessive alert fatigue by alerting on isolated events. ATTACKTRACE reconstructs full adversary narratives across time.
 
-### 2.1. Algorithm Mechanics
-* **Group by Primary Actor**: Telemetry is grouped by the initiating node (`source_ip`).
-* **Sliding Temporal Window**: Events are added to a chronological list. If the interval between the current event and the first event of the incident window exceeds $T_{\text{window}}$ (default: 60 minutes), the sliding window splits the logs into separate threat campaigns.
-* **Incident Promotion Filter**: Log clusters are promoted to full `AttackIncident` entities if they satisfy either condition:
+```text
+                [ Window Start: T_start ]
+                      │
+  Event 1 ───► Event 2 ───► Event 3 ───────────────► Event N
+     │                                                   │
+     └───────────── Δt_sliding <= T_window ─────────────┘
+     │                                                   │
+     └────────────── Max Duration <= T_max ──────────────┘
+```
+
+### 2.1. Dual-Bounding Mechanics
+* **Group by Primary Actor**: Telemetry is partitioned by `source_ip`.
+* **Sliding Step Threshold ($T_{\text{window}}$)**: Events are evaluated sequentially. If the gap between step $k$ and step $k+1$ exceeds $T_{\text{window}}$ (default: 60 minutes), the chain is segmented into separate campaigns.
+* **Maximum Duration Ceiling ($T_{\text{max}}$)**: Even if events occur continuously within $T_{\text{window}}$, an incident is bounded if total elapsed time ($t_N - t_1$) reaches $T_{\text{max}}$ (default: 240 minutes), preventing month-long APT campaigns from collapsing into a single unwieldy incident.
+* **Incident Promotion Filter**: Event clusters are promoted to full `AttackIncident` entities if they meet either condition:
   $$\text{distinct\_kill\_chain\_stages} \ge 2 \quad \text{OR} \quad \text{max\_event\_risk\_score} \ge 70$$
 
 ### 2.2. Confidence Scoring Formula
-The system rates incident confidence ($C$) dynamically based on both traversal breadth and severity severity:
+Incident confidence ($C$) is calculated dynamically based on kill-chain stage breadth and maximum observed severity:
 $$C = \min\left(30 + (\text{num\_stages} \times 12) + (\text{max\_risk} \times 0.25), 100\right)$$
 
-* **`num_stages`**: Number of unique `KillChainStage` milestones traversed.
+* **`num_stages`**: Count of distinct `KillChainStage` milestones achieved.
 * **`max_risk`**: Highest individual risk score computed among all correlated steps.
 
 ---
 
-## 3. Threat Classification & Risk Scoring Model
+## 3. Database Schema & Demo Isolation Architecture
 
-Enrichment scores events on a scale from `0` to `100` based on signature weights:
+ATTACKTRACE utilizes a normalized SQLite schema with foreign key cascading and strict partition flags.
 
-| Signature ID | Associated MITRE Technique | Description | Weight |
-|---|---|---|---|
-| `SUSPICIOUS_WEB_RECON` | `T1595 - Active Scanning` | Scans for sensitive environment config backups (`.env`). | 25 |
-| `FAILED_AUTH_BURST` | `T1110 - Brute Force` | High-frequency password guessing on portals. | 55 |
-| `SQL_INJECTION_PATTERN` | `T1190 - Exploit Public-Facing App` | SQL syntax parameters (e.g. `UNION SELECT`). | 65 |
-| `PRIVILEGE_ESCALATION` | `T1078 - Valid Accounts` | Modifying permission descriptors (e.g., `/etc/sudoers`). | 85 |
-| `UNAUTHORIZED_EXFILTRATION` | `T1005 - Data from Local System` | Downloading query outputs or exporting backups. | 80 |
+```sql
+-- Core Events Table
+CREATE TABLE IF NOT EXISTS events (
+    event_id TEXT PRIMARY KEY,
+    timestamp TEXT NOT NULL,
+    source_type TEXT NOT NULL,
+    event_type TEXT NOT NULL,
+    user TEXT,
+    source_ip TEXT,
+    resource TEXT,
+    status INTEGER,
+    raw_payload TEXT,
+    is_demo INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
 
-### 3.1. Severity Mapping Table
-The total risk score mapping:
-* **`CRITICAL`**: $90 \le R \le 100$
-* **`HIGH`**: $70 \le R < 90$
-* **`MEDIUM`**: $40 \le R < 70$
-* **`LOW`**: $20 \le R < 40$
-* **`INFO`**: $0 \le R < 20$
+-- Enriched Events Table
+CREATE TABLE IF NOT EXISTS enriched_events (
+    event_id TEXT PRIMARY KEY,
+    severity TEXT NOT NULL,
+    mitre_tactics TEXT,
+    mitre_techniques TEXT,
+    indicators TEXT,
+    risk_score INTEGER NOT NULL,
+    is_demo INTEGER DEFAULT 0,
+    FOREIGN KEY(event_id) REFERENCES events(event_id) ON DELETE CASCADE
+);
+
+-- Correlated Incidents Table
+CREATE TABLE IF NOT EXISTS incidents (
+    incident_id TEXT PRIMARY KEY,
+    primary_actor_ip TEXT,
+    targeted_users TEXT,
+    start_time TEXT,
+    end_time TEXT,
+    overall_severity TEXT,
+    confidence_score INTEGER,
+    stages_detected TEXT,
+    is_demo INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+-- Attack Steps Table (Incident Topology)
+CREATE TABLE IF NOT EXISTS attack_steps (
+    step_id TEXT PRIMARY KEY,
+    incident_id TEXT NOT NULL,
+    stage TEXT NOT NULL,
+    timestamp TEXT NOT NULL,
+    technique TEXT NOT NULL,
+    description TEXT,
+    actor TEXT,
+    risk_score INTEGER,
+    is_demo INTEGER DEFAULT 0,
+    FOREIGN KEY(incident_id) REFERENCES incidents(incident_id) ON DELETE CASCADE
+);
+
+-- SOAR Actions Table
+CREATE TABLE IF NOT EXISTS soar_actions (
+    action_id TEXT PRIMARY KEY,
+    incident_id TEXT NOT NULL,
+    action_type TEXT NOT NULL,
+    target TEXT NOT NULL,
+    command TEXT NOT NULL,
+    rollback_token TEXT NOT NULL,
+    rollback_command TEXT NOT NULL,
+    status TEXT NOT NULL,
+    is_demo INTEGER DEFAULT 0,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    FOREIGN KEY(incident_id) REFERENCES incidents(incident_id) ON DELETE CASCADE
+);
+```
+
+### 3.1. Zero-Contamination Isolation
+* Real telemetry (`attacktrace ingest <file>`) is stamped with `is_demo = 0` and preserves file provenance in `raw_payload["_provenance_file"]`.
+* Synthetic breach simulations (`attacktrace demo`) are stamped with `is_demo = 1`.
+* Purging demo data (`POST /api/v1/demo/reset` or `attacktrace demo --reset`) executes an isolated cascade delete targeting solely `is_demo = 1` rows, completely protecting real security audits from data loss.
 
 ---
 
-## 4. Extensibility Guide
+## 4. Multi-Format Telemetry Adapters
 
-To scale detection rules or support new log sources, follow these extension paths:
+| Adapter | Telemetry Ingestion Source | Extracted Attributes | Mapped Event Types |
+|---|---|---|---|
+| **`WindowsEventAdapter`** | Windows Security EVTX / JSON (Event IDs 4624, 4625, 4688, 4672) | `TargetUserName`, `SubjectUserName`, `IpAddress`, `LogonType`, `NewProcessName`, `CommandLine`, `PrivilegeList` | `LOGIN_SUCCESS`, `LOGIN_FAILED`, `PROCESS_CREATION`, `PRIVILEGE_ASSIGNED` |
+| **`SyslogAdapter`** | Linux RFC 3164 (BSD) & RFC 5424 Syslog strings | `<PRI>`, timestamp, `hostname`, `app`, `user`, `ip`, `command` | `LOGIN_FAILED` (SSH), `LOGIN_SUCCESS` (SSH), `PRIVILEGE_ASSIGNED` (sudo), `SYSTEM_LOG` |
+| **`WebLogAdapter`** | Apache / Nginx Combined & Common Log Format | `source_ip`, timestamp, `http_method`, URL path & decoded query string, `status_code`, `user_agent` | `API_REQUEST` (`source_type="web"`) |
+| **Streaming JSONL** | Line-delimited JSON (`.jsonl`) | Canonical `UnifiedEvent` or nested Windows events | Any canonical event type |
 
-### 4.1. Adding a Custom Log Source
-1. Define the parsing mapping inside `src/collector.py`.
-2. Map the logs structure (e.g. cloudtrail, syslog) to populate `UnifiedEvent` (ensuring correct parsing of `source_type` and `event_type`).
+---
 
-### 4.2. Adding a Detection Signature
-Extend `src/mitre_mapper.py` by registering a custom signature rule:
-```python
-# In src/mitre_mapper.py:
-def match_custom_threat(self, event: UnifiedEvent) -> bool:
-    # Example: Look for unauthorized docker daemon calls
-    return "/var/run/docker.sock" in (event.resource or "")
+## 5. Extensibility Guide
 
-# Register under map_event():
-if self.match_custom_threat(event):
-    indicators.append("DOCKER_SOCKET_ACCESS")
-    tactics.append("Execution")
-    techniques.append({"id": "T1609", "name": "Container Administration Command"})
-```
-Register the indicator's default weight inside `src/parser.py`:
-```python
-# In src/parser.py:
-INDICATOR_WEIGHTS = {
-    "DOCKER_SOCKET_ACCESS": 90, # Highly suspicious execution
-    # ...
-}
-```
-The pipeline will automatically propagate the signature into risk scoring, graph reconstruction, real-time WebSocket alerts, and SOAR mitigation script compiling.
+### 5.1. Adding a New Signature
+1. Register signature pattern matching in `src/mitre_mapper.py`:
+   ```python
+   # Example: Container Escape Detection
+   if "nsenter" in (event.resource or "").lower():
+       tactics.add("Privilege Escalation")
+       techniques.append({"id": "T1611", "name": "Escape to Host"})
+       indicators.add("CONTAINER_ESCAPE_ATTEMPT")
+   ```
+2. Assign weight in `src/parser.py`:
+   ```python
+   INDICATOR_WEIGHTS["CONTAINER_ESCAPE_ATTEMPT"] = 95
+   ```
+3. The pipeline automatically factors the new signature into risk scoring, confidence formulas, D3 topologies, SOAR actions, and MITRE Navigator layers.

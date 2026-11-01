@@ -343,6 +343,45 @@ def get_incident_report(incident_id: str):
     return PlainTextResponse(content=report_content, media_type="text/markdown")
 
 
+@app.get("/api/v1/incidents/{incident_id}/dossier")
+def get_incident_dossier(incident_id: str):
+    """
+    Generates and returns the structured JSON forensic evidence package.
+    """
+    target_incident = None
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            target_incident = inc
+            break
+
+    if not target_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    threat_data = ti_engine.lookup_ip(target_incident.primary_actor_ip)
+    actions = playbook_engine.generate_mitigations(target_incident)
+
+    return reporter.generate_json_dossier(
+        target_incident, threat_data, actions
+    )
+
+
+@app.get("/api/v1/incidents/{incident_id}/navigator")
+def get_incident_navigator(incident_id: str):
+    """
+    Generates and returns the MITRE ATT&CK Navigator v4.5 JSON layer.
+    """
+    target_incident = None
+    for inc in pipeline.incidents:
+        if inc.incident_id == incident_id:
+            target_incident = inc
+            break
+
+    if not target_incident:
+        raise HTTPException(status_code=404, detail="Incident not found")
+
+    return reporter.generate_navigator_layer(target_incident)
+
+
 @app.get("/api/v1/demo/scenarios")
 def list_demo_scenarios():
     """

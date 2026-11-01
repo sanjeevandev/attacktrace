@@ -16,13 +16,16 @@ class AttackTracePipeline:
         self.enriched_events: List[EnrichedSecurityEvent] = []
         self.incidents: List[AttackIncident] = []
 
-    def run_batch(self, file_path: str, is_demo: bool = False) -> List[EnrichedSecurityEvent]:
+    def run_batch(
+        self, file_path: str, is_demo: bool = False, file_type: str = "auto"
+    ) -> List[EnrichedSecurityEvent]:
         """
         Runs ingestion on raw logs, processes valid items, and enriches them.
+        Supports multi-format auto-detection (.json, .jsonl, .log, .syslog, Windows events).
         Returns a list of EnrichedSecurityEvent instances.
         """
         self.collector.clear()
-        self.collector.ingest_json_file(file_path)
+        self.collector.auto_ingest_file(file_path, file_type=file_type)
 
         self.enriched_events = []
         for event in self.collector.valid_events:
@@ -40,16 +43,17 @@ class AttackTracePipeline:
         time_window_minutes: int = 60,
         max_campaign_duration_minutes: int = 240,
         is_demo: bool = False,
+        file_type: str = "auto",
     ) -> List[AttackIncident]:
         """
         Runs the full 3-layer pipeline:
-        1. Ingests raw logs (L1)
+        1. Ingests raw logs across multiple formats via LogCollector (L1)
         2. Enriches with threat indicators & MITRE ATT&CK mappings (L2)
         3. Correlates events into attack incidents (L3)
         Returns the correlated AttackIncident list.
         """
         # Run Ingestion & Enrichment (Layers 1 and 2)
-        self.run_batch(file_path, is_demo=is_demo)
+        self.run_batch(file_path, is_demo=is_demo, file_type=file_type)
         
         # Run Correlation (Layer 3)
         self.incidents = self.correlator.correlate(
@@ -100,4 +104,3 @@ class AttackTracePipeline:
                 self.db.save_incident(inc, is_demo=is_demo)
 
         return self.incidents
-

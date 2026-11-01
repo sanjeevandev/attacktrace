@@ -19,6 +19,7 @@ from src.threat_intel import ThreatIntelEngine
 from src.playbooks import PlaybookEngine
 from src.reporter import IncidentReporter
 from src.db import DatabaseManager
+from src.adapters import WindowsEventAdapter, SyslogAdapter, WebLogAdapter
 
 __all__ = [
     "UnifiedEvent",
@@ -30,6 +31,9 @@ __all__ = [
     "ThreatIntelData",
     "MitigationAction",
     "LogCollector",
+    "WindowsEventAdapter",
+    "SyslogAdapter",
+    "WebLogAdapter",
     "MitreMapper",
     "SecurityParser",
     "AttackTracePipeline",
