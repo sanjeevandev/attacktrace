@@ -1,0 +1,44 @@
+{
+  "185.220.101.5": {
+    "ip": "185.220.101.5",
+    "reputation_score": 95,
+    "threat_actor_category": "Tor Exit Node",
+    "country": "Germany",
+    "is_tor_exit_node": true
+  },
+  "185.220.101.99": {
+    "ip": "185.220.101.99",
+    "reputation_score": 88,
+    "threat_actor_category": "Scanner",
+    "country": "Netherlands",
+    "is_tor_exit_node": true
+  },
+  "198.51.100.44": {
+    "ip": "198.51.100.44",
+    "reputation_score": 100,
+    "threat_actor_category": "Known APT",
+    "country": "Russia",
+    "is_tor_exit_node": false
+  },
+  "198.51.100.45": {
+    "ip": "198.51.100.45",
+    "reputation_score": 92,
+    "threat_actor_category": "Brute Force Botnet",
+    "country": "Romania",
+    "is_tor_exit_node": false
+  },
+  "203.0.113.195": {
+    "ip": "203.0.113.195",
+    "reputation_score": 90,
+    "threat_actor_category": "Web Exploiter",
+    "country": "China",
+    "is_tor_exit_node": false
+  },
+  "192.0.2.77": {
+    "ip": "192.0.2.77",
+    "reputation_score": 85,
+    "threat_actor_category": "Phishing C2",
+    "country": "Brazil",
+    "is_tor_exit_node": false
+  }
+}

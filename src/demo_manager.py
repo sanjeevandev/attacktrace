@@ -8,7 +8,18 @@ from src.models import AttackIncident
 from src.pipeline import AttackTracePipeline
 from src.threat_intel import ThreatIntelEngine
 
-DEFAULT_SCENARIOS_DIR = Path(__file__).resolve().parent.parent / "data" / "scenarios"
+def resolve_default_scenarios_dir() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent / "data" / "scenarios",
+        Path(__file__).resolve().parent.parent / "data" / "scenarios",
+        Path.cwd() / "data" / "scenarios",
+    ]
+    for c in candidates:
+        if c.exists() and any(c.glob("*.json")):
+            return c
+    return Path(__file__).resolve().parent / "data" / "scenarios"
+
+DEFAULT_SCENARIOS_DIR = resolve_default_scenarios_dir()
 
 SCENARIO_METADATA: Dict[str, Dict[str, str]] = {
     "windows_ad_compromise": {
@@ -33,7 +44,10 @@ class ScenarioManager:
     """
 
     def __init__(self, scenarios_dir: Optional[Union[str, Path]] = None) -> None:
-        self.scenarios_dir = Path(scenarios_dir) if scenarios_dir is not None else DEFAULT_SCENARIOS_DIR
+        if scenarios_dir is not None and Path(scenarios_dir).exists():
+            self.scenarios_dir = Path(scenarios_dir)
+        else:
+            self.scenarios_dir = resolve_default_scenarios_dir()
         self.threat_intel_engine = ThreatIntelEngine()
 
     def list_available_scenarios(self) -> List[Dict[str, Any]]:

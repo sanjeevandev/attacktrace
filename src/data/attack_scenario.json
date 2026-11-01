@@ -1,0 +1,114 @@
+[
+  {
+    "timestamp": "2026-08-23T17:40:00Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": null,
+    "source_ip": "185.220.101.5",
+    "resource": "/.env",
+    "status": 404,
+    "raw_payload": {
+      "http_method": "GET",
+      "user_agent": "Mozilla/5.0 (compatible; Nmap Scripting Engine)"
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:41:00Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_FAILED",
+    "user": "admin",
+    "source_ip": "185.220.101.5",
+    "resource": "/portal/login",
+    "status": 401,
+    "raw_payload": {
+      "attempt": 1
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:41:05Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_FAILED",
+    "user": "admin",
+    "source_ip": "185.220.101.5",
+    "resource": "/portal/login",
+    "status": 401,
+    "raw_payload": {
+      "attempt": 2
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:41:15Z",
+    "source_type": "auth",
+    "event_type": "LOGIN_SUCCESS",
+    "user": "admin",
+    "source_ip": "185.220.101.5",
+    "resource": "/portal/login",
+    "status": 200,
+    "raw_payload": {
+      "auth_method": "password"
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:42:00Z",
+    "source_type": "database",
+    "event_type": "QUERY_EXECUTION",
+    "user": "db_webapp",
+    "source_ip": "185.220.101.5",
+    "resource": "SELECT * FROM users WHERE username = 'admin' UNION SELECT * FROM credentials",
+    "status": 200,
+    "raw_payload": {
+      "rows_returned": 24,
+      "execution_time_ms": 12
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:43:00Z",
+    "source_type": "system",
+    "event_type": "COMMAND_EXECUTION",
+    "user": "admin",
+    "source_ip": "127.0.0.1",
+    "resource": "sudo chmod 777 /etc/sudoers",
+    "status": 0,
+    "raw_payload": {
+      "terminal": "pts/0"
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:44:00Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": "admin",
+    "source_ip": "185.220.101.5",
+    "resource": "/api/v1/data/export",
+    "status": 200,
+    "raw_payload": {
+      "response_time_ms": 612,
+      "bytes_sent": 8493022
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:45:00Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": "john_doe",
+    "source_ip": "192.168.1.15",
+    "resource": "/index.html",
+    "status": 200,
+    "raw_payload": {
+      "http_method": "GET"
+    }
+  },
+  {
+    "timestamp": "2026-08-23T17:45:30Z",
+    "source_type": "database",
+    "event_type": "QUERY_EXECUTION",
+    "user": "db_webapp",
+    "source_ip": "192.168.1.15",
+    "resource": "SELECT email FROM users WHERE id = 42",
+    "status": 200,
+    "raw_payload": {
+      "rows_returned": 1,
+      "execution_time_ms": 1
+    }
+  }
+]

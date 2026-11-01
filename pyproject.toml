@@ -34,4 +34,6 @@ where = ["."]
 include = ["src*"]
 
 [tool.setuptools.package-data]
+"src" = ["templates/*", "data/*", "data/scenarios/*"]
 "*" = ["templates/*", "data/*", "data/scenarios/*"]
+

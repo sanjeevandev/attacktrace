@@ -29,7 +29,29 @@ playbook_engine = PlaybookEngine()
 reporter = IncidentReporter()
 scenario_manager = ScenarioManager()
 
-DEFAULT_SCENARIO_PATH = str(BASE_DIR / "data" / "attack_scenario.json")
+def resolve_default_scenario_path() -> str:
+    candidates = [
+        Path(__file__).resolve().parent / "data" / "attack_scenario.json",
+        Path(__file__).resolve().parent.parent / "data" / "attack_scenario.json",
+        Path.cwd() / "data" / "attack_scenario.json",
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return str(Path(__file__).resolve().parent / "data" / "attack_scenario.json")
+
+def resolve_template_path() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent / "templates" / "dashboard.html",
+        Path(__file__).resolve().parent.parent / "templates" / "dashboard.html",
+        Path.cwd() / "templates" / "dashboard.html",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return Path(__file__).resolve().parent / "templates" / "dashboard.html"
+
+DEFAULT_SCENARIO_PATH = resolve_default_scenario_path()
 
 
 def enrich_all_incidents():
@@ -154,7 +176,7 @@ def get_dashboard():
     """
     Serves the interactive SOC console.
     """
-    template_path = BASE_DIR / "templates" / "dashboard.html"
+    template_path = resolve_template_path()
     if not template_path.exists():
         raise HTTPException(status_code=404, detail="Dashboard template file not found")
 

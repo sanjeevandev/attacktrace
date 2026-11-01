@@ -1,0 +1,77 @@
+[
+  {
+    "timestamp": "2026-10-31T15:00:00Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": null,
+    "source_ip": "203.0.113.195",
+    "resource": "/.env",
+    "status": 404,
+    "raw_payload": {
+      "http_method": "GET",
+      "user_agent": "sqlmap/1.7.2#stable",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T15:00:30Z",
+    "source_type": "web",
+    "event_type": "API_REQUEST",
+    "user": null,
+    "source_ip": "203.0.113.195",
+    "resource": "/phpmyadmin",
+    "status": 404,
+    "raw_payload": {
+      "http_method": "GET",
+      "user_agent": "sqlmap/1.7.2#stable",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T15:02:00Z",
+    "source_type": "database",
+    "event_type": "QUERY_EXECUTION",
+    "user": "www-data",
+    "source_ip": "203.0.113.195",
+    "resource": "SELECT id, title FROM articles WHERE id = 1 UNION SELECT username, password FROM users -- ",
+    "status": 200,
+    "raw_payload": {
+      "rows_returned": 18,
+      "query_type": "SELECT",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T15:04:00Z",
+    "source_type": "system",
+    "event_type": "COMMAND_EXECUTION",
+    "user": "www-data",
+    "source_ip": "203.0.113.195",
+    "resource": "sudo chmod 777 /etc/sudoers; echo 'www-data ALL=(ALL) NOPASSWD:ALL' >> /etc/sudoers",
+    "status": 0,
+    "raw_payload": {
+      "command": "sudo chmod 777 /etc/sudoers",
+      "privilege": "root",
+      "is_demo": true
+    },
+    "is_demo": true
+  },
+  {
+    "timestamp": "2026-10-31T15:06:00Z",
+    "source_type": "database",
+    "event_type": "QUERY_EXECUTION",
+    "user": "www-data",
+    "source_ip": "203.0.113.195",
+    "resource": "select * from credentials",
+    "status": 200,
+    "raw_payload": {
+      "rows_returned": 250,
+      "target_table": "credentials",
+      "is_demo": true
+    },
+    "is_demo": true
+  }
+]

@@ -5,12 +5,26 @@ from pathlib import Path
 from typing import Optional
 from src.models import ThreatIntelData, AttackIncident
 
-DEFAULT_INTEL_DB_PATH = str(Path(__file__).resolve().parent.parent / "data" / "mock_threat_intel.json")
+def resolve_default_intel_db_path() -> str:
+    candidates = [
+        Path(__file__).resolve().parent / "data" / "mock_threat_intel.json",
+        Path(__file__).resolve().parent.parent / "data" / "mock_threat_intel.json",
+        Path.cwd() / "data" / "mock_threat_intel.json",
+    ]
+    for c in candidates:
+        if c.exists():
+            return str(c)
+    return str(Path(__file__).resolve().parent / "data" / "mock_threat_intel.json")
+
+DEFAULT_INTEL_DB_PATH = resolve_default_intel_db_path()
 
 
 class ThreatIntelEngine:
     def __init__(self, db_path: Optional[str] = None):
-        self.db_path = str(db_path) if db_path is not None else DEFAULT_INTEL_DB_PATH
+        if db_path is not None and os.path.exists(str(db_path)):
+            self.db_path = str(db_path)
+        else:
+            self.db_path = resolve_default_intel_db_path()
         self.database = {}
         if os.path.exists(self.db_path):
             try:

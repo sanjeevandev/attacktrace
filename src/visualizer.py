@@ -149,15 +149,19 @@ class GraphVisualizer:
         Generates a standalone interactive HTML file displaying incidents.
         Embeds serialized incidents directly into the script template.
         """
-        # Resolve dashboard template path
-        template_dir = os.path.join(
-            os.path.dirname(os.path.dirname(os.path.abspath(__file__))), 
-            "templates"
-        )
-        template_path = os.path.join(template_dir, "dashboard.html")
+        candidates = [
+            os.path.join(os.path.dirname(os.path.abspath(__file__)), "templates", "dashboard.html"),
+            os.path.join(os.path.dirname(os.path.dirname(os.path.abspath(__file__))), "templates", "dashboard.html"),
+            os.path.join(os.getcwd(), "templates", "dashboard.html"),
+        ]
+        template_path = None
+        for c in candidates:
+            if os.path.exists(c):
+                template_path = c
+                break
 
-        if not os.path.exists(template_path):
-            raise FileNotFoundError(f"Dashboard template not found at {template_path}")
+        if not template_path:
+            raise FileNotFoundError(f"Dashboard template not found in candidates: {candidates}")
 
         with open(template_path, "r", encoding="utf-8") as f:
             html_content = f.read()
