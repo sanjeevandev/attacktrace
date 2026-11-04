@@ -1,0 +1,1242 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>ATTACKTRACE // Zero-Latency Commercial Portal & Enterprise Demo</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&family=Outfit:wght@500;600;700;800;900&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg-obsidian: #06080f;
+            --bg-card: #0e1322;
+            --bg-card-hover: #131a30;
+            --bg-card-subtle: #090d18;
+            --border-color: #1e2842;
+            --border-highlight: rgba(0, 210, 255, 0.35);
+            --border-chrome: rgba(203, 213, 225, 0.2);
+            --text-primary: #f8fafc;
+            --text-secondary: #94a3b8;
+            --text-muted: #64748b;
+            
+            --color-cyan: #00d2ff;
+            --color-cyan-glow: rgba(0, 210, 255, 0.3);
+            --color-ice-blue: #38bdf8;
+            --color-ice-glow: rgba(56, 189, 248, 0.25);
+            --color-chrome: #cbd5e1;
+            --color-chrome-light: #ffffff;
+            
+            --color-success: #10b981;
+            --color-success-glow: rgba(16, 185, 129, 0.25);
+            --color-warning: #f59e0b;
+            --color-danger: #ef4444;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+        }
+
+        body {
+            background-color: var(--bg-obsidian);
+            color: var(--text-primary);
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, sans-serif;
+            min-height: 100vh;
+            line-height: 1.5;
+            background-image: 
+                radial-gradient(circle at 15% 15%, rgba(0, 210, 255, 0.05) 0%, transparent 40%),
+                radial-gradient(circle at 85% 75%, rgba(56, 189, 248, 0.04) 0%, transparent 45%),
+                linear-gradient(to bottom, #06080f, #070b14 100%);
+            background-attachment: fixed;
+            overflow-x: hidden;
+        }
+
+        /* Ambient scanline & grid effects */
+        .ambient-grid {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100vw;
+            height: 100vh;
+            background-size: 50px 50px;
+            background-image: 
+                linear-gradient(to right, rgba(255, 255, 255, 0.015) 1px, transparent 1px),
+                linear-gradient(to bottom, rgba(255, 255, 255, 0.015) 1px, transparent 1px);
+            pointer-events: none;
+            z-index: 0;
+        }
+
+        /* Top Navigation Header */
+        header {
+            position: sticky;
+            top: 0;
+            z-index: 100;
+            background: rgba(6, 8, 15, 0.85);
+            backdrop-filter: blur(12px);
+            -webkit-backdrop-filter: blur(12px);
+            border-bottom: 1px solid var(--border-color);
+            padding: 0.9rem 2.5rem;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+        }
+
+        .header-left {
+            display: flex;
+            align-items: center;
+            gap: 1.5rem;
+        }
+
+        .logo-wrap {
+            display: flex;
+            align-items: center;
+            gap: 0.75rem;
+            text-decoration: none;
+        }
+
+        .header-logo {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.45rem;
+            font-weight: 900;
+            letter-spacing: 2.5px;
+            background: linear-gradient(135deg, #ffffff 0%, var(--color-cyan) 60%, var(--color-ice-blue) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .logo-icon {
+            font-size: 1.25rem;
+            color: var(--color-cyan);
+            filter: drop-shadow(0 0 8px var(--color-cyan-glow));
+        }
+
+        /* Zero Latency Badge */
+        .zero-latency-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 0.8px;
+            padding: 0.35rem 0.85rem;
+            border-radius: 99px;
+            background: rgba(0, 210, 255, 0.08);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            color: var(--color-cyan);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 0 16px rgba(0, 210, 255, 0.15);
+            text-transform: uppercase;
+        }
+
+        .pulse-dot {
+            width: 7px;
+            height: 7px;
+            border-radius: 50%;
+            background-color: var(--color-cyan);
+            box-shadow: 0 0 8px var(--color-cyan);
+            animation: pulse-animation 2s infinite ease-in-out;
+        }
+
+        @keyframes pulse-animation {
+            0%, 100% { opacity: 1; transform: scale(1); }
+            50% { opacity: 0.4; transform: scale(0.85); }
+        }
+
+        .header-right {
+            display: flex;
+            align-items: center;
+            gap: 1.2rem;
+        }
+
+        .nav-link {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            color: var(--text-secondary);
+            text-decoration: none;
+            padding: 0.45rem 0.9rem;
+            border-radius: 6px;
+            transition: all 0.2s ease;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+        }
+
+        .nav-link:hover {
+            color: var(--color-cyan);
+            background: rgba(0, 210, 255, 0.06);
+        }
+
+        .btn-nav-demo {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.8rem;
+            font-weight: 700;
+            letter-spacing: 0.5px;
+            padding: 0.45rem 1.1rem;
+            border-radius: 6px;
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.15), rgba(56, 189, 248, 0.08));
+            border: 1px solid rgba(0, 210, 255, 0.4);
+            color: var(--color-cyan);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            transition: all 0.2s ease;
+        }
+
+        .btn-nav-demo:hover {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.25), rgba(56, 189, 248, 0.15));
+            border-color: var(--color-cyan);
+            box-shadow: 0 0 16px rgba(0, 210, 255, 0.3);
+            transform: translateY(-1px);
+            color: #fff;
+        }
+
+        /* Main Container */
+        .page-container {
+            position: relative;
+            z-index: 10;
+            max-width: 1280px;
+            margin: 0 auto;
+            padding: 3.5rem 2rem 5rem 2rem;
+        }
+
+        .portal-grid {
+            display: grid;
+            grid-template-columns: 1fr 1.15fr;
+            gap: 3.5rem;
+            align-items: start;
+        }
+
+        @media (max-width: 1024px) {
+            .portal-grid {
+                grid-template-columns: 1fr;
+                gap: 2.5rem;
+            }
+            header {
+                padding: 0.9rem 1.2rem;
+            }
+        }
+
+        /* Left Column: Value & Proof */
+        .value-col {
+            display: flex;
+            flex-direction: column;
+            gap: 1.8rem;
+        }
+
+        .pre-title-pill {
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.72rem;
+            font-weight: 700;
+            letter-spacing: 1px;
+            color: var(--color-ice-blue);
+            background: rgba(56, 189, 248, 0.08);
+            border: 1px solid rgba(56, 189, 248, 0.25);
+            padding: 0.3rem 0.8rem;
+            border-radius: 99px;
+            width: fit-content;
+            text-transform: uppercase;
+        }
+
+        .hero-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 2.85rem;
+            font-weight: 900;
+            line-height: 1.15;
+            letter-spacing: -0.5px;
+            background: linear-gradient(135deg, #ffffff 30%, var(--color-chrome) 65%, var(--color-cyan) 100%);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .hero-description {
+            font-size: 1.05rem;
+            color: var(--text-secondary);
+            line-height: 1.65;
+            font-weight: 400;
+        }
+
+        /* Badges Row */
+        .badges-row {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 0.75rem;
+        }
+
+        .proof-badge {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.78rem;
+            font-weight: 600;
+            letter-spacing: 0.3px;
+            padding: 0.4rem 0.9rem;
+            border-radius: 6px;
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            color: var(--text-primary);
+            display: inline-flex;
+            align-items: center;
+            gap: 8px;
+            box-shadow: 0 4px 12px rgba(0, 0, 0, 0.25);
+            transition: all 0.2s ease;
+        }
+
+        .proof-badge:hover {
+            border-color: var(--color-cyan);
+            transform: translateY(-1px);
+        }
+
+        .badge-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+        }
+
+        .badge-dot.cyan { background-color: var(--color-cyan); box-shadow: 0 0 8px var(--color-cyan); }
+        .badge-dot.ice { background-color: var(--color-ice-blue); box-shadow: 0 0 8px var(--color-ice-blue); }
+        .badge-dot.green { background-color: var(--color-success); box-shadow: 0 0 8px var(--color-success); }
+
+        /* Capability Feature Cards */
+        .capabilities-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.85rem;
+            margin-top: 0.5rem;
+        }
+
+        .capability-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 1rem 1.25rem;
+            display: flex;
+            align-items: flex-start;
+            gap: 1rem;
+            transition: all 0.25s ease;
+        }
+
+        .capability-card:hover {
+            border-color: rgba(0, 210, 255, 0.3);
+            background: var(--bg-card-hover);
+            transform: translateX(4px);
+        }
+
+        .cap-icon {
+            font-size: 1.25rem;
+            line-height: 1;
+            margin-top: 2px;
+            padding: 0.5rem;
+            border-radius: 6px;
+            background: rgba(0, 210, 255, 0.08);
+            border: 1px solid rgba(0, 210, 255, 0.2);
+            color: var(--color-cyan);
+        }
+
+        .cap-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 700;
+            color: var(--text-primary);
+            margin-bottom: 0.2rem;
+        }
+
+        .cap-desc {
+            font-size: 0.82rem;
+            color: var(--text-secondary);
+            line-height: 1.45;
+        }
+
+        /* Direct CTA Card */
+        .cta-instant-card {
+            background: linear-gradient(135deg, rgba(14, 19, 34, 0.95) 0%, rgba(20, 28, 48, 0.9) 100%);
+            border: 1px solid rgba(0, 210, 255, 0.35);
+            border-radius: 12px;
+            padding: 1.5rem;
+            box-shadow: 0 12px 32px rgba(0, 210, 255, 0.08);
+            position: relative;
+            overflow: hidden;
+        }
+
+        .cta-instant-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: linear-gradient(90deg, var(--color-cyan), var(--color-ice-blue), transparent);
+        }
+
+        .cta-card-header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            margin-bottom: 0.65rem;
+        }
+
+        .cta-card-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #ffffff;
+            display: flex;
+            align-items: center;
+            gap: 8px;
+        }
+
+        .live-tag {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.65rem;
+            font-weight: 700;
+            padding: 0.2rem 0.5rem;
+            border-radius: 4px;
+            background: rgba(16, 185, 129, 0.15);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            color: var(--color-success);
+        }
+
+        .cta-card-body {
+            font-size: 0.85rem;
+            color: var(--text-secondary);
+            margin-bottom: 1.25rem;
+            line-height: 1.5;
+        }
+
+        .btn-launch-demo {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 10px;
+            width: 100%;
+            padding: 0.85rem 1.4rem;
+            background: linear-gradient(135deg, #00d2ff 0%, #0099cc 100%);
+            border: none;
+            border-radius: 8px;
+            color: #06080f;
+            font-family: 'Outfit', sans-serif;
+            font-size: 0.95rem;
+            font-weight: 800;
+            letter-spacing: 0.5px;
+            text-decoration: none;
+            cursor: pointer;
+            transition: all 0.25s ease;
+            box-shadow: 0 4px 20px rgba(0, 210, 255, 0.35);
+        }
+
+        .btn-launch-demo:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 6px 24px rgba(0, 210, 255, 0.55);
+            background: linear-gradient(135deg, #38bdf8 0%, #00b4d8 100%);
+        }
+
+        /* Direct Developer Contact Info */
+        .direct-links-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 10px;
+            padding: 1.25rem 1.5rem;
+            display: flex;
+            flex-direction: column;
+            gap: 0.75rem;
+        }
+
+        .direct-link-row {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            font-size: 0.85rem;
+        }
+
+        .direct-label {
+            color: var(--text-muted);
+            font-weight: 500;
+        }
+
+        .direct-val {
+            font-family: 'JetBrains Mono', monospace;
+            color: var(--color-cyan);
+            text-decoration: none;
+            display: inline-flex;
+            align-items: center;
+            gap: 6px;
+            transition: color 0.2s ease;
+        }
+
+        .direct-val:hover {
+            color: var(--color-ice-blue);
+            text-decoration: underline;
+        }
+
+        /* Right Column: Interactive Form */
+        .form-col {
+            position: relative;
+        }
+
+        .form-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border-color);
+            border-radius: 16px;
+            padding: 2.25rem;
+            box-shadow: 0 20px 50px rgba(0, 0, 0, 0.55);
+            position: relative;
+            overflow: hidden;
+            transition: border-color 0.3s ease;
+        }
+
+        .form-card::before {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            height: 3px;
+            background: linear-gradient(90deg, var(--color-cyan), var(--color-ice-blue), #94a3b8);
+        }
+
+        .form-header {
+            margin-bottom: 1.75rem;
+        }
+
+        .form-heading {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.65rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 0.4rem;
+            letter-spacing: -0.3px;
+        }
+
+        .form-subheading {
+            font-size: 0.88rem;
+            color: var(--text-secondary);
+        }
+
+        /* Inquiry Tabs */
+        .tab-group {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 0.5rem;
+            margin-bottom: 1.75rem;
+            background: var(--bg-card-subtle);
+            padding: 0.35rem;
+            border-radius: 8px;
+            border: 1px solid var(--border-color);
+        }
+
+        @media (max-width: 640px) {
+            .tab-group {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .tab-btn {
+            background: transparent;
+            border: none;
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.78rem;
+            font-weight: 600;
+            padding: 0.65rem 0.5rem;
+            border-radius: 6px;
+            cursor: pointer;
+            transition: all 0.2s ease;
+            text-align: center;
+            white-space: nowrap;
+            overflow: hidden;
+            text-overflow: ellipsis;
+        }
+
+        .tab-btn:hover {
+            color: var(--text-primary);
+            background: rgba(255, 255, 255, 0.03);
+        }
+
+        .tab-btn.active {
+            background: linear-gradient(135deg, rgba(0, 210, 255, 0.16), rgba(56, 189, 248, 0.08));
+            border: 1px solid rgba(0, 210, 255, 0.4);
+            color: var(--color-cyan);
+            font-weight: 700;
+            box-shadow: 0 2px 10px rgba(0, 210, 255, 0.15);
+        }
+
+        /* Form Fields */
+        .form-group {
+            margin-bottom: 1.35rem;
+        }
+
+        .form-row {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 1.25rem;
+        }
+
+        @media (max-width: 640px) {
+            .form-row {
+                grid-template-columns: 1fr;
+            }
+        }
+
+        .form-label {
+            display: block;
+            font-family: 'Inter', sans-serif;
+            font-size: 0.8rem;
+            font-weight: 600;
+            color: var(--text-primary);
+            margin-bottom: 0.45rem;
+            letter-spacing: 0.2px;
+        }
+
+        .form-label span.req {
+            color: var(--color-cyan);
+            margin-left: 3px;
+        }
+
+        .form-input, .form-select, .form-textarea {
+            width: 100%;
+            background: var(--bg-card-subtle);
+            border: 1px solid var(--border-color);
+            border-radius: 8px;
+            padding: 0.75rem 1rem;
+            color: var(--text-primary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.9rem;
+            transition: all 0.2s ease;
+            outline: none;
+        }
+
+        .form-input:focus, .form-select:focus, .form-textarea:focus {
+            border-color: var(--color-cyan);
+            background: #0d1326;
+            box-shadow: 0 0 16px rgba(0, 210, 255, 0.25);
+        }
+
+        .form-input::placeholder, .form-textarea::placeholder {
+            color: var(--text-muted);
+            font-size: 0.85rem;
+        }
+
+        .form-textarea {
+            resize: vertical;
+            min-height: 110px;
+        }
+
+        /* Submit Button */
+        .btn-submit {
+            position: relative;
+            width: 100%;
+            padding: 0.95rem 1.5rem;
+            background: linear-gradient(135deg, #00d2ff 0%, #38bdf8 50%, #0284c7 100%);
+            border: 1px solid rgba(255, 255, 255, 0.2);
+            border-radius: 8px;
+            color: #06080f;
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.05rem;
+            font-weight: 900;
+            letter-spacing: 0.7px;
+            cursor: pointer;
+            transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+            overflow: hidden;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            gap: 12px;
+            box-shadow: 0 4px 20px rgba(0, 210, 255, 0.35);
+            margin-top: 0.5rem;
+        }
+
+        .btn-submit:hover:not(:disabled) {
+            transform: translateY(-2px);
+            box-shadow: 0 8px 30px rgba(0, 210, 255, 0.55);
+            background: linear-gradient(135deg, #38bdf8 0%, #00d2ff 60%, #0ea5e9 100%);
+        }
+
+        .btn-submit:active:not(:disabled) {
+            transform: translateY(0);
+        }
+
+        .btn-submit:disabled {
+            opacity: 0.65;
+            cursor: not-allowed;
+            transform: none !important;
+            box-shadow: none !important;
+        }
+
+        .btn-arrow {
+            transition: transform 0.2s ease;
+            font-size: 1.2rem;
+            line-height: 1;
+        }
+
+        .btn-submit:hover:not(:disabled) .btn-arrow {
+            transform: translateX(4px);
+        }
+
+        /* Spinner */
+        .spinner {
+            display: none;
+            width: 20px;
+            height: 20px;
+            border: 2px solid rgba(6, 8, 15, 0.3);
+            border-top-color: #06080f;
+            border-radius: 50%;
+            animation: spin 0.8s linear infinite;
+        }
+
+        @keyframes spin {
+            to { transform: rotate(360deg); }
+        }
+
+        /* Success Confirmation Banner */
+        .confirmation-banner {
+            display: none;
+            background: linear-gradient(135deg, rgba(14, 25, 45, 0.95) 0%, rgba(10, 18, 33, 0.98) 100%);
+            border: 1px solid rgba(0, 210, 255, 0.45);
+            border-radius: 12px;
+            padding: 2.25rem;
+            text-align: center;
+            box-shadow: 0 16px 40px rgba(0, 210, 255, 0.15);
+            animation: fade-in 0.4s ease-out;
+        }
+
+        @keyframes fade-in {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+
+        .success-icon-wrap {
+            width: 64px;
+            height: 64px;
+            margin: 0 auto 1.25rem auto;
+            border-radius: 50%;
+            background: rgba(16, 185, 129, 0.12);
+            border: 1px solid rgba(16, 185, 129, 0.35);
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            color: var(--color-success);
+            font-size: 2rem;
+            box-shadow: 0 0 24px rgba(16, 185, 129, 0.2);
+        }
+
+        .confirm-title {
+            font-family: 'Outfit', sans-serif;
+            font-size: 1.55rem;
+            font-weight: 800;
+            color: #ffffff;
+            margin-bottom: 0.5rem;
+        }
+
+        .confirm-desc {
+            font-size: 0.9rem;
+            color: var(--text-secondary);
+            line-height: 1.6;
+            margin-bottom: 1.5rem;
+        }
+
+        .ticket-box {
+            background: var(--bg-card-subtle);
+            border: 1px solid rgba(0, 210, 255, 0.3);
+            border-radius: 8px;
+            padding: 1rem;
+            margin: 0 auto 1.75rem auto;
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            max-width: 380px;
+        }
+
+        .ticket-info {
+            text-align: left;
+        }
+
+        .ticket-label {
+            font-family: 'Inter', sans-serif;
+            font-size: 0.7rem;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-muted);
+            margin-bottom: 2px;
+        }
+
+        .ticket-number {
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 1.25rem;
+            font-weight: 800;
+            color: var(--color-cyan);
+            letter-spacing: 1px;
+        }
+
+        .btn-copy-ticket {
+            background: rgba(0, 210, 255, 0.12);
+            border: 1px solid rgba(0, 210, 255, 0.35);
+            color: var(--color-cyan);
+            padding: 0.4rem 0.8rem;
+            border-radius: 6px;
+            font-family: 'JetBrains Mono', monospace;
+            font-size: 0.75rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-copy-ticket:hover {
+            background: rgba(0, 210, 255, 0.25);
+            color: #fff;
+        }
+
+        .confirm-actions {
+            display: flex;
+            gap: 1rem;
+            justify-content: center;
+        }
+
+        .btn-confirm-sec {
+            padding: 0.65rem 1.2rem;
+            border-radius: 6px;
+            background: transparent;
+            border: 1px solid var(--border-color);
+            color: var(--text-secondary);
+            font-family: 'Inter', sans-serif;
+            font-size: 0.85rem;
+            font-weight: 600;
+            cursor: pointer;
+            transition: all 0.2s ease;
+        }
+
+        .btn-confirm-sec:hover {
+            color: #fff;
+            border-color: var(--color-cyan);
+        }
+
+        /* Error alert */
+        .error-alert {
+            display: none;
+            background: rgba(239, 68, 68, 0.12);
+            border: 1px solid rgba(239, 68, 68, 0.35);
+            color: #fca5a5;
+            padding: 0.8rem 1rem;
+            border-radius: 8px;
+            font-size: 0.85rem;
+            margin-bottom: 1.25rem;
+        }
+
+        /* Footer */
+        footer {
+            border-top: 1px solid var(--border-color);
+            padding: 2.5rem 2rem;
+            text-align: center;
+            font-size: 0.8rem;
+            color: var(--text-muted);
+            margin-top: 4rem;
+        }
+
+        .footer-content {
+            max-width: 1280px;
+            margin: 0 auto;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            flex-wrap: wrap;
+            gap: 1rem;
+        }
+
+        @media (max-width: 640px) {
+            .footer-content {
+                flex-direction: column;
+                text-align: center;
+            }
+        }
+    </style>
+</head>
+<body>
+    <div class="ambient-grid"></div>
+
+    <!-- Navigation Header -->
+    <header>
+        <div class="header-left">
+            <a href="/contact" class="logo-wrap">
+                <span class="logo-icon">▲</span>
+                <span class="header-logo">ATTACKTRACE</span>
+            </a>
+            <div class="zero-latency-badge">
+                <span class="pulse-dot"></span>
+                <span>Zero Latency</span>
+            </div>
+        </div>
+        <div class="header-right">
+            <a href="https://github.com/sanjeevandev/attacktrace" target="_blank" rel="noopener noreferrer" class="nav-link">
+                <span>GitHub Repository</span>
+            </a>
+            <a href="/dashboard" class="btn-nav-demo">
+                <span>⚡ Live SOC Console</span>
+            </a>
+        </div>
+    </header>
+
+    <!-- Main Content -->
+    <main class="page-container">
+        <div class="portal-grid">
+            
+            <!-- Left Column: Value & Proof -->
+            <section class="value-col">
+                <div class="pre-title-pill">
+                    <span>SOC Intelligence // Inbound Portal</span>
+                </div>
+                
+                <h1 class="hero-title">Zero-Latency Threat Reconstruction for Modern SOCs.</h1>
+                
+                <p class="hero-description">
+                    Empower Tier-3 incident response teams with microsecond kill-chain graph synthesis, 
+                    deterministic MITRE ATT&amp;CK correlation, and zero-telemetry offline safety.
+                </p>
+
+                <!-- Value Badges -->
+                <div class="badges-row">
+                    <div class="proof-badge">
+                        <span class="badge-dot cyan"></span>
+                        <span>v1.0.0 Production Ready</span>
+                    </div>
+                    <div class="proof-badge">
+                        <span class="badge-dot ice"></span>
+                        <span>MITRE ATT&amp;CK Mapped</span>
+                    </div>
+                    <div class="proof-badge">
+                        <span class="badge-dot green"></span>
+                        <span>100% Offline-Safe</span>
+                    </div>
+                </div>
+
+                <!-- Proof Capabilities -->
+                <div class="capabilities-list">
+                    <div class="capability-card">
+                        <div class="cap-icon">⚡</div>
+                        <div>
+                            <div class="cap-title">Microsecond Correlation Engine</div>
+                            <div class="cap-desc">Unified schema ingestion across Linux Syslog, Windows Security Events, and AWS CloudTrail with instant attack path clustering.</div>
+                        </div>
+                    </div>
+
+                    <div class="capability-card">
+                        <div class="cap-icon">🛡️</div>
+                        <div>
+                            <div class="cap-title">Reconstructed Kill Chains</div>
+                            <div class="cap-desc">Automated D3.js temporal topology graphing and step-by-step root-cause reconstruction for accelerated triage.</div>
+                        </div>
+                    </div>
+
+                    <div class="capability-card">
+                        <div class="cap-icon">🔒</div>
+                        <div>
+                            <div class="cap-title">Deterministic SOAR &amp; Atomic Rollbacks</div>
+                            <div class="cap-desc">Generate one-click bash playbooks and tokenized rollback scripts to remediate active intrusions with zero collateral damage.</div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Direct CTA Card -->
+                <div class="cta-instant-card">
+                    <div class="cta-card-header">
+                        <div class="cta-card-title">
+                            <span>Want to test it right now?</span>
+                        </div>
+                        <span class="live-tag">INSTANT ACCESS</span>
+                    </div>
+                    <div class="cta-card-body">
+                        No credentials or deployment required. Step directly into our sandboxed SOC console pre-loaded with simulated enterprise intrusion scenarios (Windows AD, Linux Breach, macOS Endpoint).
+                    </div>
+                    <a href="http://127.0.0.1:8000/dashboard" class="btn-launch-demo" id="btn-instant-demo">
+                        <span>Launch Instant Demo Dashboard →</span>
+                    </a>
+                </div>
+
+                <!-- Direct Engineering Contacts -->
+                <div class="direct-links-card">
+                    <div class="direct-link-row">
+                        <span class="direct-label">Developer Email:</span>
+                        <a href="mailto:engineering@attacktrace.io" class="direct-val" id="dev-email-link">engineering@attacktrace.io</a>
+                    </div>
+                    <div class="direct-link-row">
+                        <span class="direct-label">GitHub Repository:</span>
+                        <a href="https://github.com/sanjeevandev/attacktrace" target="_blank" rel="noopener noreferrer" class="direct-val" id="github-repo-link">
+                            github.com/sanjeevandev/attacktrace ↗
+                        </a>
+                    </div>
+                </div>
+            </section>
+
+            <!-- Right Column: Interactive Form -->
+            <section class="form-col">
+                <div class="form-card">
+                    
+                    <div class="form-header">
+                        <h2 class="form-heading">Initiate Enterprise Engagement</h2>
+                        <p class="form-subheading">Submit your deployment requirements or inquiry to connect directly with the core engineering team.</p>
+                    </div>
+
+                    <!-- Inquiry Type Selector Tabs -->
+                    <div class="tab-group" id="inquiry-tab-group" role="tablist">
+                        <button type="button" class="tab-btn active" data-type="Request SOC Demo" role="tab">
+                            ⚡ Request SOC Demo
+                        </button>
+                        <button type="button" class="tab-btn" data-type="Investor &amp; Academic Partnership" role="tab">
+                            🤝 Investor &amp; Academic Partnership
+                        </button>
+                        <button type="button" class="tab-btn" data-type="Open-Source Collaboration" role="tab">
+                            🛠️ Open-Source Collaboration
+                        </button>
+                    </div>
+
+                    <!-- Error Alert -->
+                    <div class="error-alert" id="form-error-alert" role="alert"></div>
+
+                    <!-- Inbound Form -->
+                    <form id="contact-form" novalidate>
+                        <input type="hidden" id="inquiry_type" name="inquiry_type" value="Request SOC Demo">
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="full_name">Full Name <span class="req">*</span></label>
+                                <input type="text" id="full_name" name="full_name" class="form-input" placeholder="e.g. Elena Rostova" required>
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="email">Work Email <span class="req">*</span></label>
+                                <input type="email" id="email" name="email" class="form-input" placeholder="e.g. elena@cybercorp.com" required>
+                            </div>
+                        </div>
+
+                        <div class="form-row">
+                            <div class="form-group">
+                                <label class="form-label" for="organization">Organization / College</label>
+                                <input type="text" id="organization" name="organization" class="form-input" placeholder="e.g. Vanguard Security Lab">
+                            </div>
+                            <div class="form-group">
+                                <label class="form-label" for="log_volume">Expected Log Volume</label>
+                                <select id="log_volume" name="log_volume" class="form-select">
+                                    <option value="<1GB/day">&lt; 1 GB / day (Pilot / Evaluation)</option>
+                                    <option value="1-50GB/day">1 - 50 GB / day (Regional SOC)</option>
+                                    <option value="Enterprise">Enterprise (&gt; 50 GB / day)</option>
+                                </select>
+                            </div>
+                        </div>
+
+                        <div class="form-group">
+                            <label class="form-label" for="message">Message &amp; Requirements <span class="req">*</span></label>
+                            <textarea id="message" name="message" class="form-textarea" placeholder="Detail your security telemetry sources, evaluation goals, or partnership scope..." required></textarea>
+                        </div>
+
+                        <button type="submit" id="btn-submit-inquiry" class="btn-submit">
+                            <span class="btn-text">Transmit Inquiry</span>
+                            <span class="btn-arrow">→</span>
+                            <div class="spinner" id="submit-spinner"></div>
+                        </button>
+                    </form>
+
+                    <!-- Success Confirmation Banner -->
+                    <div class="confirmation-banner" id="confirmation-banner">
+                        <div class="success-icon-wrap">✓</div>
+                        <h3 class="confirm-title">Inquiry Transmitted</h3>
+                        <p class="confirm-desc">
+                            Your inquiry has been encrypted and recorded into our inbound triage ledger. 
+                            An ATTACKTRACE technical lead will respond within 4 business hours.
+                        </p>
+
+                        <div class="ticket-box">
+                            <div class="ticket-info">
+                                <div class="ticket-label">Reference Ticket ID</div>
+                                <div class="ticket-number" id="ticket-id-display">INQ-000000</div>
+                            </div>
+                            <button type="button" class="btn-copy-ticket" id="btn-copy-ticket" onclick="copyTicketId()">Copy ID</button>
+                        </div>
+
+                        <div class="confirm-actions">
+                            <button type="button" class="btn-confirm-sec" onclick="resetInquiryForm()">Submit Another Inquiry</button>
+                            <a href="/dashboard" class="btn-launch-demo" style="width: auto; padding: 0.65rem 1.4rem; font-size: 0.85rem;">
+                                Open SOC Console →
+                            </a>
+                        </div>
+                    </div>
+
+                </div>
+            </section>
+
+        </div>
+    </main>
+
+    <!-- Footer -->
+    <footer>
+        <div class="footer-content">
+            <div>
+                © 2026 ATTACKTRACE. Zero-Latency Threat Intelligence &amp; Autonomous SOC Reconstruction.
+            </div>
+            <div style="font-family: 'JetBrains Mono', monospace; font-size: 0.75rem;">
+                Built for High-Velocity Cyber Defense // Offline-Safe
+            </div>
+        </div>
+    </footer>
+
+    <script>
+        // Inquiry Type Tab Switching
+        const tabButtons = document.querySelectorAll('.tab-btn');
+        const inquiryTypeInput = document.getElementById('inquiry_type');
+        const errorAlert = document.getElementById('form-error-alert');
+
+        tabButtons.forEach(btn => {
+            btn.addEventListener('click', () => {
+                tabButtons.forEach(b => b.classList.remove('active'));
+                btn.classList.add('active');
+                inquiryTypeInput.value = btn.getAttribute('data-type');
+            });
+        });
+
+        // Form Submission Handler
+        const contactForm = document.getElementById('contact-form');
+        const submitBtn = document.getElementById('btn-submit-inquiry');
+        const spinner = document.getElementById('submit-spinner');
+        const btnText = submitBtn.querySelector('.btn-text');
+        const btnArrow = submitBtn.querySelector('.btn-arrow');
+        const confirmationBanner = document.getElementById('confirmation-banner');
+        const ticketDisplay = document.getElementById('ticket-id-display');
+
+        function showError(message) {
+            errorAlert.textContent = message;
+            errorAlert.style.display = 'block';
+        }
+
+        function clearError() {
+            errorAlert.textContent = '';
+            errorAlert.style.display = 'none';
+        }
+
+        contactForm.addEventListener('submit', async (e) => {
+            e.preventDefault();
+            clearError();
+
+            const fullName = document.getElementById('full_name').value.trim();
+            const email = document.getElementById('email').value.trim();
+            const organization = document.getElementById('organization').value.trim();
+            const logVolume = document.getElementById('log_volume').value;
+            const message = document.getElementById('message').value.trim();
+            const inquiryType = inquiryTypeInput.value;
+
+            // Client-side validations
+            if (!fullName) {
+                showError('Please enter your full name.');
+                document.getElementById('full_name').focus();
+                return;
+            }
+
+            if (!email) {
+                showError('Please enter your work email.');
+                document.getElementById('email').focus();
+                return;
+            }
+
+            const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+            if (!emailRegex.test(email)) {
+                showError('Please enter a valid email address.');
+                document.getElementById('email').focus();
+                return;
+            }
+
+            if (!message) {
+                showError('Please enter a message describing your inquiry or requirements.');
+                document.getElementById('message').focus();
+                return;
+            }
+
+            // Set Loading State
+            submitBtn.disabled = true;
+            spinner.style.display = 'block';
+            btnArrow.style.display = 'none';
+            btnText.textContent = 'Transmitting Inquiry...';
+
+            try {
+                const payload = {
+                    full_name: fullName,
+                    email: email,
+                    organization: organization,
+                    inquiry_type: inquiryType,
+                    log_volume: logVolume,
+                    message: message
+                };
+
+                const response = await fetch('/api/v1/inquiry', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                        'Accept': 'application/json'
+                    },
+                    body: JSON.stringify(payload)
+                });
+
+                if (!response.ok) {
+                    let errMsg = 'Failed to transmit inquiry. Please try again.';
+                    try {
+                        const errData = await response.json();
+                        if (errData.detail) {
+                            if (Array.isArray(errData.detail)) {
+                                errMsg = errData.detail.map(d => d.msg || d).join(', ');
+                            } else {
+                                errMsg = errData.detail;
+                            }
+                        }
+                    } catch (_) {}
+                    throw new Error(errMsg);
+                }
+
+                const result = await response.json();
+                const ticketId = result.ticket_id || 'INQ-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+
+                // Show Success Confirmation
+                contactForm.style.display = 'none';
+                ticketDisplay.textContent = ticketId;
+                confirmationBanner.style.display = 'block';
+
+            } catch (err) {
+                showError(err.message || 'An error occurred during transmission. Please verify your connection.');
+            } finally {
+                submitBtn.disabled = false;
+                spinner.style.display = 'none';
+                btnArrow.style.display = 'inline';
+                btnText.textContent = 'Transmit Inquiry';
+            }
+        });
+
+        function copyTicketId() {
+            const ticketText = ticketDisplay.textContent;
+            navigator.clipboard.writeText(ticketText).then(() => {
+                const copyBtn = document.getElementById('btn-copy-ticket');
+                const orig = copyBtn.textContent;
+                copyBtn.textContent = 'Copied!';
+                copyBtn.style.borderColor = 'var(--color-success)';
+                copyBtn.style.color = 'var(--color-success)';
+                setTimeout(() => {
+                    copyBtn.textContent = orig;
+                    copyBtn.style.borderColor = '';
+                    copyBtn.style.color = '';
+                }, 2000);
+            });
+        }
+
+        function resetInquiryForm() {
+            contactForm.reset();
+            inquiryTypeInput.value = 'Request SOC Demo';
+            tabButtons.forEach((b, i) => {
+                if (i === 0) b.classList.add('active');
+                else b.classList.remove('active');
+            });
+            clearError();
+            confirmationBanner.style.display = 'none';
+            contactForm.style.display = 'block';
+        }
+    </script>
+</body>
+</html>

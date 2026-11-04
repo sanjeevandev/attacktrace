@@ -8,29 +8,62 @@
     <script src="https://d3js.org/d3.v7.min.js"></script>
     <style>
         :root {
-            --bg-dark: #070a13;
-            --bg-card: #0f1422;
-            --bg-card-hover: #161e33;
-            --bg-sidebar: #0b0f1a;
-            --border-color: #1e2842;
-            --text-primary: #f1f5f9;
-            --text-secondary: #94a3b8;
-            --color-primary: #00d2ff;
-            --color-primary-rgb: 0, 210, 255;
-            --color-accent: #d500f9;
+            /* Blood Circuit Palette */
+            --bg-dark: #10090D;
+            --bg-card: #24121C;
+            --bg-card-hover: #351B28;
+            --bg-sidebar: #24121C;
+            --bg-panel-secondary: #351B28;
+            --border-color: #512638;
+            --text-primary: #F8EAF0;
+            --text-secondary: #B78A9B;
+            --color-primary: #FF3158;
+            --color-primary-rgb: 255, 49, 88;
+            --color-accent: #FF3158;
             
-            --critical: #f43f5e;
-            --high: #f97316;
-            --medium: #eab308;
-            --low: #22c55e;
-            --info: #3b82f6;
-            --demo-amber: #f59e0b;
+            --dark-crimson: #7F1935;
+            --muted-rose: #B78A9B;
+
+            /* Button Styling System */
+            --btn-primary: #FF3158;
+            --btn-primary-hover: #FF5475;
+            --btn-secondary: #351B28;
+            --btn-secondary-hover: #482537;
+            --btn-mitigation: #7F1935;
+            --btn-mitigation-hover: #9B2042;
+            --btn-danger: #DC2626;
+            --btn-danger-hover: #EF4444;
+            --btn-disabled: #2D1722;
+            --btn-disabled-text: #6D4253;
+
+            /* Severity & Status Indicator Palette */
+            --critical: #FF3158;
+            --high: #E11D48;
+            --medium: #F59E0B;
+            --low: #10B981;
+            --info: #7F1935;
+            --demo-amber: #F59E0B;
         }
 
         * {
             box-sizing: border-box;
             margin: 0;
             padding: 0;
+        }
+
+        ::-webkit-scrollbar {
+            width: 6px;
+            height: 6px;
+        }
+        ::-webkit-scrollbar-track {
+            background: #10090D;
+        }
+        ::-webkit-scrollbar-thumb {
+            background: #512638;
+            border-radius: 3px;
+        }
+        ::-webkit-scrollbar-thumb:hover {
+            background: #7F1935;
         }
 
         body {
@@ -45,7 +78,7 @@
 
         /* Top Navigation Header */
         header {
-            background: linear-gradient(90deg, #070a13 0%, #0e1324 50%, #151b30 100%);
+            background: linear-gradient(90deg, #10090D 0%, #1A0D15 50%, #24121C 100%);
             border-bottom: 1px solid var(--border-color);
             padding: 0.75rem 1.8rem;
             display: flex;
@@ -66,7 +99,7 @@
             font-size: 1.5rem;
             font-weight: 800;
             letter-spacing: 2px;
-            background: linear-gradient(135deg, #00d2ff 0%, #a855f7 50%, #f43f5e 100%);
+            background: linear-gradient(135deg, #FF3158 0%, #B78A9B 50%, #7F1935 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
             display: flex;
@@ -78,7 +111,7 @@
         .header-logo::before {
             content: '▲';
             font-size: 1.3rem;
-            background: linear-gradient(135deg, #00d2ff 0%, #a855f7 100%);
+            background: linear-gradient(135deg, #FF3158 0%, #7F1935 100%);
             -webkit-background-clip: text;
             -webkit-text-fill-color: transparent;
         }
@@ -98,17 +131,17 @@
         }
 
         .mode-demo {
-            background: rgba(245, 158, 11, 0.12);
+            background: rgba(245, 158, 11, 0.15);
             color: var(--demo-amber);
             border: 1px solid rgba(245, 158, 11, 0.4);
             box-shadow: 0 0 12px rgba(245, 158, 11, 0.2);
         }
 
         .mode-real {
-            background: rgba(34, 197, 94, 0.12);
+            background: rgba(16, 185, 129, 0.15);
             color: var(--low);
-            border: 1px solid rgba(34, 197, 94, 0.4);
-            box-shadow: 0 0 12px rgba(34, 197, 94, 0.2);
+            border: 1px solid rgba(16, 185, 129, 0.4);
+            box-shadow: 0 0 12px rgba(16, 185, 129, 0.2);
         }
 
         .header-right {
@@ -121,7 +154,7 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.8rem;
             color: var(--text-secondary);
-            background-color: rgba(15, 20, 34, 0.8);
+            background-color: rgba(36, 18, 28, 0.85);
             padding: 0.4rem 0.9rem;
             border-radius: 99px;
             border: 1px solid var(--border-color);
@@ -139,9 +172,9 @@
         }
 
         @keyframes pulse {
-            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0.7); }
-            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(34, 197, 94, 0); }
-            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(34, 197, 94, 0); }
+            0% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 49, 88, 0.7); }
+            70% { transform: scale(1); box-shadow: 0 0 0 8px rgba(255, 49, 88, 0); }
+            100% { transform: scale(0.95); box-shadow: 0 0 0 0 rgba(255, 49, 88, 0); }
         }
 
         .status-dot.pulsing {
@@ -150,7 +183,7 @@
 
         /* Action Buttons */
         .btn-action {
-            background: linear-gradient(135deg, rgba(0, 210, 255, 0.15) 0%, rgba(168, 85, 247, 0.15) 100%);
+            background: #351B28;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             font-family: 'Inter', sans-serif;
@@ -166,22 +199,63 @@
         }
 
         .btn-action:hover {
-            border-color: var(--color-primary);
-            color: var(--color-primary);
+            border-color: #FF5475;
+            color: #FF5475;
+            background: #482537;
             transform: translateY(-1px);
-            box-shadow: 0 4px 12px rgba(0, 210, 255, 0.2);
+            box-shadow: 0 4px 12px rgba(255, 49, 88, 0.25);
+        }
+
+        .btn-action.btn-primary {
+            background: #FF3158;
+            border-color: #FF3158;
+            color: #F8EAF0;
+        }
+
+        .btn-action.btn-primary:hover {
+            background: #FF5475;
+            border-color: #FF5475;
+            color: #FFFFFF;
+            box-shadow: 0 4px 14px rgba(255, 49, 88, 0.4);
+        }
+
+        .btn-action.btn-mitigate, .btn-action.btn-soar {
+            background: #7F1935;
+            border-color: #512638;
+            color: #F8EAF0;
+        }
+
+        .btn-action.btn-mitigate:hover, .btn-action.btn-soar:hover {
+            background: #9B2042;
+            border-color: #FF5475;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(255, 49, 88, 0.3);
         }
 
         .btn-action.btn-danger {
-            background: rgba(244, 63, 94, 0.12);
-            border-color: rgba(244, 63, 94, 0.3);
-            color: #fda4af;
+            background: #DC2626;
+            border-color: #DC2626;
+            color: #F8EAF0;
         }
 
         .btn-action.btn-danger:hover {
-            border-color: var(--critical);
-            color: #fff;
-            box-shadow: 0 4px 12px rgba(244, 63, 94, 0.3);
+            background: #EF4444;
+            border-color: #EF4444;
+            color: #FFFFFF;
+            box-shadow: 0 4px 12px rgba(220, 38, 38, 0.35);
+        }
+
+        button:disabled, button[disabled],
+        .btn-action:disabled, .btn-action[disabled],
+        .btn-download:disabled, .btn-download[disabled],
+        .replay-btn:disabled, .replay-btn[disabled],
+        .scenario-card-btn:disabled, .scenario-card-btn[disabled] {
+            background: #2D1722 !important;
+            color: #6D4253 !important;
+            border-color: #3D1C2A !important;
+            cursor: not-allowed !important;
+            transform: none !important;
+            box-shadow: none !important;
         }
 
         /* Main Workspace Layout */
@@ -226,7 +300,7 @@
         }
 
         .incident-card.active {
-            background-color: rgba(0, 210, 255, 0.08);
+            background-color: rgba(255, 49, 88, 0.12);
             border-left: 4px solid var(--color-primary);
         }
 
@@ -247,11 +321,11 @@
             letter-spacing: 0.5px;
         }
 
-        .badge-critical { background: rgba(244, 63, 94, 0.2); color: var(--critical); border: 1px solid rgba(244, 63, 94, 0.4); }
-        .badge-high { background: rgba(249, 115, 22, 0.2); color: var(--high); border: 1px solid rgba(249, 115, 22, 0.4); }
-        .badge-medium { background: rgba(234, 179, 8, 0.2); color: var(--medium); border: 1px solid rgba(234, 179, 8, 0.4); }
-        .badge-low { background: rgba(34, 197, 94, 0.2); color: var(--low); border: 1px solid rgba(34, 197, 94, 0.4); }
-        .badge-info { background: rgba(59, 130, 246, 0.2); color: var(--info); border: 1px solid rgba(59, 130, 246, 0.4); }
+        .badge-critical { background: rgba(255, 49, 88, 0.2); color: var(--critical); border: 1px solid rgba(255, 49, 88, 0.4); }
+        .badge-high { background: rgba(225, 29, 72, 0.2); color: var(--high); border: 1px solid rgba(225, 29, 72, 0.4); }
+        .badge-medium { background: rgba(245, 158, 11, 0.2); color: var(--medium); border: 1px solid rgba(245, 158, 11, 0.4); }
+        .badge-low { background: rgba(16, 185, 129, 0.2); color: var(--low); border: 1px solid rgba(16, 185, 129, 0.4); }
+        .badge-info { background: rgba(183, 138, 155, 0.2); color: var(--info); border: 1px solid rgba(183, 138, 155, 0.4); }
 
         .confidence-indicator {
             font-family: 'JetBrains Mono', monospace;
@@ -290,7 +364,7 @@
             gap: 1rem;
             padding: 1rem 1.5rem;
             border-bottom: 1px solid var(--border-color);
-            background-color: #090e1a;
+            background-color: #10090D;
         }
 
         .stat-card {
@@ -326,7 +400,7 @@
         /* Tabs Control */
         .tab-controls {
             display: flex;
-            background-color: #090e1a;
+            background-color: #180D14;
             border-bottom: 1px solid var(--border-color);
             padding: 0 1.5rem;
             gap: 0.5rem;
@@ -396,7 +470,7 @@
         .story-text {
             font-size: 0.9rem;
             line-height: 1.6;
-            color: #cbd5e1;
+            color: var(--text-primary);
             white-space: pre-line;
         }
 
@@ -429,7 +503,7 @@
             font-family: 'JetBrains Mono', monospace;
             font-size: 0.75rem;
             font-weight: 700;
-            color: var(--color-accent);
+            color: #FF5475;
         }
 
         .node-time {
@@ -462,14 +536,14 @@
         /* INNOVATION: Time-Travel Attack Replayer Controls                */
         /* --------------------------------------------------------------- */
         .replayer-container {
-            background: linear-gradient(180deg, #0d1222 0%, #090e1a 100%);
+            background: linear-gradient(180deg, #24121C 0%, #1A0D15 100%);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 0.85rem 1.2rem;
             display: flex;
             flex-direction: column;
             gap: 0.6rem;
-            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.4);
+            box-shadow: 0 4px 20px rgba(0, 0, 0, 0.6);
         }
 
         .replayer-top-row {
@@ -499,7 +573,7 @@
         }
 
         .replay-btn {
-            background-color: var(--bg-card);
+            background-color: #351B28;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             font-size: 0.8rem;
@@ -514,12 +588,13 @@
         }
 
         .replay-btn:hover {
-            border-color: var(--color-primary);
-            color: var(--color-primary);
+            border-color: #FF5475;
+            color: #FF5475;
+            background-color: #482537;
         }
 
         .replay-btn.active {
-            background-color: rgba(0, 210, 255, 0.2);
+            background-color: rgba(255, 49, 88, 0.25);
             border-color: var(--color-primary);
             color: var(--color-primary);
         }
@@ -535,7 +610,7 @@
             -webkit-appearance: none;
             height: 6px;
             border-radius: 3px;
-            background: #1e2842;
+            background: #351B28;
             outline: none;
             cursor: pointer;
         }
@@ -566,8 +641,8 @@
         }
 
         .replay-technique-pill {
-            background: rgba(0, 210, 255, 0.08);
-            border: 1px solid rgba(0, 210, 255, 0.25);
+            background: rgba(255, 49, 88, 0.12);
+            border: 1px solid rgba(255, 49, 88, 0.35);
             color: var(--color-primary);
             padding: 0.25rem 0.6rem;
             border-radius: 4px;
@@ -600,7 +675,7 @@
             font-family: 'Outfit', sans-serif;
             font-size: 0.9rem;
             font-weight: 700;
-            background-color: #0b0f1a;
+            background-color: #1A0D15;
         }
 
         .legend {
@@ -623,8 +698,8 @@
         }
 
         .legend-attacker { background-color: var(--critical); }
-        .legend-user { background-color: var(--high); }
-        .legend-resource { background-color: var(--info); }
+        .legend-user { background-color: #E11D48; }
+        .legend-resource { background-color: var(--dark-crimson); }
         .legend-technique { background-color: var(--medium); }
 
         .svg-container {
@@ -671,7 +746,7 @@
         .edge-label {
             font-family: 'JetBrains Mono', monospace;
             font-size: 10px;
-            fill: #94a3b8;
+            fill: var(--text-secondary);
             text-anchor: middle;
             pointer-events: none;
         }
@@ -733,7 +808,7 @@
         }
 
         .btn-download {
-            background-color: #0b0f1a;
+            background-color: #351B28;
             border: 1px solid var(--border-color);
             color: var(--text-primary);
             font-family: 'JetBrains Mono', monospace;
@@ -749,9 +824,21 @@
         }
 
         .btn-download:hover {
-            border-color: var(--color-primary);
-            color: var(--color-primary);
+            border-color: #FF5475;
+            color: #FF5475;
+            background-color: #482537;
             transform: translateY(-1px);
+        }
+
+        .btn-download.btn-mitigate {
+            background-color: #7F1935;
+            border-color: #512638;
+        }
+
+        .btn-download.btn-mitigate:hover {
+            background-color: #9B2042;
+            border-color: #FF5475;
+            color: #FFFFFF;
         }
 
         /* Live Alert Stream */
@@ -807,7 +894,7 @@
             width: 100%;
             height: 100%;
             overflow: auto;
-            background-color: rgba(0, 0, 0, 0.85);
+            background-color: rgba(16, 9, 13, 0.85);
             backdrop-filter: blur(6px);
             align-items: center;
             justify-content: center;
@@ -822,7 +909,7 @@
             display: flex;
             flex-direction: column;
             overflow: hidden;
-            box-shadow: 0 15px 35px rgba(0,0,0,0.6);
+            box-shadow: 0 15px 35px rgba(0,0,0,0.8);
         }
 
         .modal-header {
@@ -831,7 +918,7 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            background-color: #0b0f1a;
+            background-color: #1A0D15;
         }
 
         .modal-header h3 {
@@ -870,7 +957,7 @@
             border-top: 1px solid var(--border-color);
             display: flex;
             justify-content: flex-end;
-            background-color: #0b0f1a;
+            background-color: #1A0D15;
             gap: 10px;
         }
 
@@ -882,7 +969,7 @@
         }
 
         .scenario-card {
-            background-color: rgba(11, 15, 26, 0.7);
+            background-color: rgba(36, 18, 28, 0.85);
             border: 1px solid var(--border-color);
             border-radius: 8px;
             padding: 1.2rem;
@@ -897,7 +984,7 @@
         .scenario-card:hover {
             border-color: var(--color-primary);
             transform: translateY(-2px);
-            box-shadow: 0 6px 18px rgba(0, 210, 255, 0.15);
+            box-shadow: 0 6px 18px rgba(255, 49, 88, 0.25);
         }
 
         .scenario-icon {
@@ -919,9 +1006,9 @@
         }
 
         .scenario-card-btn {
-            background: linear-gradient(135deg, var(--color-primary) 0%, #3b82f6 100%);
-            border: none;
-            color: #070a13;
+            background: #FF3158;
+            border: 1px solid #FF3158;
+            color: #F8EAF0;
             font-family: 'Inter', sans-serif;
             font-weight: 700;
             font-size: 0.8rem;
@@ -929,11 +1016,13 @@
             border-radius: 5px;
             cursor: pointer;
             margin-top: 0.4rem;
-            transition: opacity 0.2s;
+            transition: all 0.2s;
         }
 
         .scenario-card-btn:hover {
-            opacity: 0.9;
+            background: #FF5475;
+            border-color: #FF5475;
+            box-shadow: 0 4px 12px rgba(255, 49, 88, 0.35);
         }
 
         .no-data-msg {
@@ -953,6 +1042,9 @@
             <div id="mode-badge" class="mode-pill mode-real">● REAL MODE</div>
         </div>
         <div class="header-right">
+            <a href="/contact" id="btn-contact-nav" class="btn-action" style="text-decoration: none; color: inherit; display: inline-flex; align-items: center; gap: 6px;">
+                <span>⚡ Contact / Enterprise</span>
+            </a>
             <button id="btn-select-scenario" class="btn-action" onclick="openScenarioModal()">
                 🎛️ Select Scenario
             </button>
@@ -1041,13 +1133,13 @@
                             <button id="btn-export-navigator" class="btn-download" onclick="downloadNavigatorLayer()">
                                 🗺️ Navigator (.json)
                             </button>
-                            <button id="btn-export-mitigate" class="btn-download" onclick="downloadContainmentScript()">
+                            <button id="btn-export-mitigate" class="btn-download btn-mitigate" onclick="downloadContainmentScript()">
                                 🛡️ Containment Script
                             </button>
                             <button id="btn-export-rollback" class="btn-download" onclick="downloadRollbackScript()">
                                 🔄 Rollback Script
                             </button>
-                            <button class="btn-download" style="border-color: var(--color-primary); color: var(--color-primary);" onclick="runSOARPlaybook()">
+                            <button class="btn-download btn-mitigate" style="background-color: #7F1935; border-color: #FF3158; color: #F8EAF0;" onclick="runSOARPlaybook()">
                                 ⚡ Run Playbook
                             </button>
                         </div>
@@ -1098,7 +1190,7 @@
                             <svg id="graph-svg">
                                 <defs>
                                     <marker id="arrow" viewBox="0 0 10 10" refX="22" refY="5" markerWidth="6" markerHeight="6" orient="auto-start-reverse">
-                                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#475569" />
+                                        <path d="M 0 0 L 10 5 L 0 10 z" fill="#B78A9B" />
                                     </marker>
                                 </defs>
                                 <g id="edges-group"></g>
@@ -1114,10 +1206,10 @@
                         <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 0.8rem; flex-wrap: wrap; gap: 10px;">
                             <div class="story-title" style="margin-bottom: 0;">📖 Incident Story Narrative</div>
                             <div id="soar-buttons-container" style="display: flex; gap: 10px;">
-                                <button onclick="runSOARPlaybook()" style="background: linear-gradient(135deg, #00d2ff 0%, #00e676 100%); color: #070a13; border: none; font-weight: 700; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
+                                <button onclick="runSOARPlaybook()" style="background-color: #7F1935; color: #F8EAF0; border: 1px solid #512638; font-weight: 700; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem; display: flex; align-items: center; gap: 6px;">
                                     ⚡ Run SOAR Playbook
                                 </button>
-                                <button onclick="previewForensicReport()" style="background-color: transparent; border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 600; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
+                                <button onclick="previewForensicReport()" style="background-color: #351B28; border: 1px solid var(--border-color); color: var(--text-primary); font-weight: 600; padding: 0.4rem 1rem; border-radius: 4px; cursor: pointer; font-size: 0.8rem;">
                                     📄 View Markdown Report
                                 </button>
                             </div>
@@ -1205,7 +1297,7 @@
                 </div>
                 <div>
                     <h4 style="font-size: 0.85rem; text-transform: uppercase; color: var(--text-secondary); margin-bottom: 0.5rem; letter-spacing: 0.5px;">Generated Playbook Script</h4>
-                    <pre id="modal-bash-script" style="background-color: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; color: #a6e22e; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;"></pre>
+                    <pre id="modal-bash-script" style="background-color: rgba(16, 9, 13, 0.7); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.8rem; color: #FF5475; overflow-x: auto; white-space: pre-wrap; word-break: break-all; max-height: 200px; overflow-y: auto;"></pre>
                 </div>
             </div>
             <div class="modal-footer">
@@ -1222,7 +1314,7 @@
                 <span class="modal-close" onclick="closeReportModal()">&times;</span>
             </div>
             <div class="modal-body" style="flex: 1;">
-                <pre id="modal-report-markdown" style="background-color: rgba(0, 0, 0, 0.4); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: var(--text-primary); overflow-x: auto; white-space: pre-wrap; word-break: break-all; height: 100%;"></pre>
+                <pre id="modal-report-markdown" style="background-color: rgba(16, 9, 13, 0.7); border: 1px solid var(--border-color); padding: 1rem; border-radius: 6px; font-family: monospace; font-size: 0.85rem; color: var(--text-primary); overflow-x: auto; white-space: pre-wrap; word-break: break-all; height: 100%;"></pre>
             </div>
             <div class="modal-footer" style="justify-content: space-between;">
                 <button class="btn-action" onclick="downloadMarkdownReport()">💾 Download .md File</button>
@@ -1693,7 +1785,7 @@
             const typeColors = {
                 attacker: 'var(--critical)',
                 user: 'var(--high)',
-                resource: 'var(--info)',
+                resource: 'var(--dark-crimson)',
                 technique: 'var(--medium)'
             };
 
@@ -1703,15 +1795,15 @@
                 const dst = coords[edge.target];
                 if (!src || !dst) return;
 
-                let strokeColor = '#475569';
+                let strokeColor = '#512638';
                 let strokeDash = '';
                 if (edge.action === 'progressed_to') {
-                    strokeColor = '#d500f9';
+                    strokeColor = '#FF3158';
                     strokeDash = '4,4';
                 } else if (edge.action === 'targeted') {
                     strokeColor = 'var(--high)';
                 } else if (edge.action === 'accessed') {
-                    strokeColor = 'var(--info)';
+                    strokeColor = 'var(--dark-crimson)';
                 } else if (edge.action === 'utilized') {
                     strokeColor = 'var(--medium)';
                 }
@@ -1764,7 +1856,7 @@
                 const circle = document.createElementNS('http://www.w3.org/2000/svg', 'circle');
                 circle.setAttribute('r', '15');
                 circle.setAttribute('class', 'node-circle');
-                circle.setAttribute('fill', '#0f172a');
+                circle.setAttribute('fill', '#24121C');
                 circle.setAttribute('stroke', color);
                 g.appendChild(circle);
 
@@ -2102,7 +2194,7 @@
             } else {
                 actions.forEach(action => {
                     const card = document.createElement('div');
-                    card.style.backgroundColor = 'rgba(0, 0, 0, 0.2)';
+                    card.style.backgroundColor = 'rgba(53, 27, 40, 0.4)';
                     card.style.border = '1px solid var(--border-color)';
                     card.style.borderRadius = '4px';
                     card.style.padding = '0.8rem 1rem';
@@ -2112,7 +2204,7 @@
                             <span class="severity-badge badge-low" style="font-size: 0.65rem;">${action.status}</span>
                         </div>
                         <div style="font-size: 0.8rem; color: var(--text-secondary); margin-bottom: 0.4rem;">Target: <code>${action.target}</code> | Token: <code>${action.rollback_token}</code></div>
-                        <div style="font-family: monospace; font-size: 0.75rem; color: var(--text-primary); background-color: rgba(255,255,255,0.02); padding: 0.4rem; border-radius: 4px;">${action.command_snippet}</div>
+                        <div style="font-family: monospace; font-size: 0.75rem; color: var(--text-primary); background-color: rgba(16, 9, 13, 0.6); padding: 0.4rem; border-radius: 4px;">${action.command_snippet}</div>
                     `;
                     mitigationsList.appendChild(card);
                 });

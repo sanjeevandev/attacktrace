@@ -4,7 +4,8 @@ from pathlib import Path
 from typing import List, Dict, Any, Optional
 from fastapi import FastAPI, HTTPException, WebSocket, WebSocketDisconnect
 from fastapi.responses import HTMLResponse, PlainTextResponse
-from pydantic import BaseModel
+import re
+from pydantic import BaseModel, Field, field_validator
 
 from src.pipeline import AttackTracePipeline
 from src.visualizer import GraphVisualizer
@@ -50,6 +51,18 @@ def resolve_template_path() -> Path:
         if c.exists():
             return c
     return Path(__file__).resolve().parent / "templates" / "dashboard.html"
+
+
+def resolve_contact_template_path() -> Path:
+    candidates = [
+        Path(__file__).resolve().parent / "templates" / "contact.html",
+        Path(__file__).resolve().parent.parent / "templates" / "contact.html",
+        Path.cwd() / "templates" / "contact.html",
+    ]
+    for c in candidates:
+        if c.exists():
+            return c
+    return Path(__file__).resolve().parent / "templates" / "contact.html"
 
 DEFAULT_SCENARIO_PATH = resolve_default_scenario_path()
 
@@ -184,6 +197,71 @@ def get_dashboard():
         html_content = f.read()
 
     return HTMLResponse(content=html_content)
+
+
+@app.get("/contact", response_class=HTMLResponse)
+def get_contact():
+    """
+    Serves the commercial contact and enterprise demo page.
+    """
+    template_path = resolve_contact_template_path()
+    if not template_path.exists():
+        raise HTTPException(status_code=404, detail="Contact template file not found")
+
+    with open(template_path, "r", encoding="utf-8") as f:
+        html_content = f.read()
+
+    return HTMLResponse(content=html_content)
+
+
+EMAIL_REGEX = re.compile(r"^[a-zA-Z0-9_.+-]+@[a-zA-Z0-9-]+\.[a-zA-Z0-9-.]+$")
+
+
+class InquiryPayload(BaseModel):
+    full_name: str = Field(..., min_length=1)
+    email: str = Field(..., min_length=3)
+    organization: Optional[str] = ""
+    inquiry_type: Optional[str] = "Request SOC Demo"
+    log_volume: Optional[str] = "<1GB/day"
+    message: str = Field(..., min_length=1)
+
+    @field_validator("full_name")
+    @classmethod
+    def validate_full_name(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Full name cannot be empty")
+        return v.strip()
+
+    @field_validator("email")
+    @classmethod
+    def validate_email(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Email cannot be empty")
+        v = v.strip()
+        if not EMAIL_REGEX.match(v):
+            raise ValueError("Invalid email format")
+        return v
+
+    @field_validator("message")
+    @classmethod
+    def validate_message(cls, v: str) -> str:
+        if not v or not v.strip():
+            raise ValueError("Message cannot be empty")
+        return v.strip()
+
+
+@app.post("/api/v1/inquiry")
+def submit_inquiry(payload: InquiryPayload):
+    """
+    Validates input payload, saves to the database, and returns status and ticket_id.
+    """
+    data = payload.model_dump()
+    target_db = pipeline.db if (pipeline and pipeline.db) else db_manager
+    ticket_id = target_db.save_inquiry(data)
+    return {
+        "status": "success",
+        "ticket_id": ticket_id
+    }
 
 
 @app.websocket("/ws/alerts")

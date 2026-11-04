@@ -2,6 +2,7 @@ import json
 import os
 import sqlite3
 import threading
+import uuid
 from contextlib import contextmanager
 from datetime import datetime, timezone
 from pathlib import Path
@@ -161,6 +162,46 @@ class DatabaseManager:
                     (1, now_str),
                 )
                 conn.commit()
+
+            # Migration Version 2: Inquiries table
+            if 2 not in applied_versions:
+                conn.execute(
+                    """
+                    CREATE TABLE IF NOT EXISTS inquiries (
+                        inquiry_id TEXT PRIMARY KEY,
+                        full_name TEXT,
+                        email TEXT,
+                        organization TEXT,
+                        inquiry_type TEXT,
+                        log_volume TEXT,
+                        message TEXT,
+                        created_at TEXT
+                    );
+                    """
+                )
+                now_str = datetime.now(timezone.utc).isoformat()
+                conn.execute(
+                    "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?);",
+                    (2, now_str),
+                )
+                conn.commit()
+
+            # Ensure inquiries table exists
+            conn.execute(
+                """
+                CREATE TABLE IF NOT EXISTS inquiries (
+                    inquiry_id TEXT PRIMARY KEY,
+                    full_name TEXT,
+                    email TEXT,
+                    organization TEXT,
+                    inquiry_type TEXT,
+                    log_volume TEXT,
+                    message TEXT,
+                    created_at TEXT
+                );
+                """
+            )
+            conn.commit()
 
     def save_events(self, events: List[UnifiedEvent], is_demo: bool = False) -> None:
         """
@@ -622,6 +663,65 @@ class DatabaseManager:
                 "max_risk": max_risk,
                 "severity_distribution": sev_dist,
             }
+
+    def save_inquiry(self, data: Dict[str, Any]) -> str:
+        """
+        Saves a commercial contact inquiry or demo request into the inquiries table.
+        Returns the generated unique inquiry ticket ID.
+        """
+        inquiry_id = data.get("inquiry_id")
+        if not inquiry_id:
+            inquiry_id = f"INQ-{uuid.uuid4().hex[:8].upper()}"
+
+        now_str = data.get("created_at") or datetime.now(timezone.utc).isoformat()
+        full_name = data.get("full_name", "")
+        email = data.get("email", "")
+        organization = data.get("organization", "")
+        inquiry_type = data.get("inquiry_type", "Request SOC Demo")
+        log_volume = data.get("log_volume", "<1GB/day")
+        message = data.get("message", "")
+
+        with self.connection() as conn:
+            conn.execute(
+                """
+                INSERT INTO inquiries (
+                    inquiry_id, full_name, email, organization,
+                    inquiry_type, log_volume, message, created_at
+                ) VALUES (?, ?, ?, ?, ?, ?, ?, ?);
+                """,
+                (
+                    inquiry_id,
+                    full_name,
+                    email,
+                    organization,
+                    inquiry_type,
+                    log_volume,
+                    message,
+                    now_str,
+                ),
+            )
+            conn.commit()
+
+        return inquiry_id
+
+    def get_inquiry(self, inquiry_id: str) -> Optional[Dict[str, Any]]:
+        """
+        Retrieves an inquiry record by its ID.
+        """
+        with self.connection() as conn:
+            cur = conn.execute("SELECT * FROM inquiries WHERE inquiry_id = ?;", (inquiry_id,))
+            row = cur.fetchone()
+            if not row:
+                return None
+            return dict(row)
+
+    def get_inquiries(self) -> List[Dict[str, Any]]:
+        """
+        Retrieves all inquiries ordered by creation date descending.
+        """
+        with self.connection() as conn:
+            cur = conn.execute("SELECT * FROM inquiries ORDER BY created_at DESC;")
+            return [dict(row) for row in cur.fetchall()]
 
     def close(self) -> None:
         """
